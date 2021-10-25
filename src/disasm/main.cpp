@@ -1,8 +1,8 @@
 #include <stdio.h>
-#include "asm.h"
+#include "disasm.h"
 
 int main(const int argc, char const * const argv[]){
 
-	Assembling("asm.txt", "asm.bin");
+	Assembling("../../build/asm.bin", "../../build/disasm.txt");
 	return 0;
 }

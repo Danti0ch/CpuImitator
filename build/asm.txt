@@ -1,11 +1,9 @@
-push 5
-push 5
-mul
-push 4
-push -1
-push 6
-mul
-mul
-sub
-out
-hlt
+PUSH 45
+POP [5]
+PUSH [5]
+PUSH [5]
+PUSH [6]
+SUB
+MUL
+OUT ; коммент ебучий
+HLT

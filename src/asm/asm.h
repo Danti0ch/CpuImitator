@@ -1,24 +1,26 @@
 #ifndef ASM_H
 #define ASM_H
 
-#include "com_constants.h"
+#include "../cmd_constants.h"
 #include <stdlib.h>
 #include <assert.h>
 #include <string.h>
 #include <stdio.h>
 #include "text_storage.h"
 
-// необходимо ли?
-const int MAX_INSTRUCTIONS_NUM = 20;
+// норм?
+struct _cmd_arg{
+	int value;
+	char type;	
+};
 
-// TODO: перенести к файлу централизации
-const int MAX_ARGS_NUM = 2;
-const int ARG_SIZE = 4;
+struct _cmd_string{
+	char 		name[MAX_INSTR_LEN];
+	_cmd_arg 	arg;
 
-void Assembling(char const * const asm_file_name);
+	int 		n_args;
+};
 
-long int get_file_len(FILE *ptr_file);
-
-char* get_buffer_from_file(char const * const file_name);
+void Assembling(char const * const in_asm_name, char const * const out_asm_name);
 
 #endif // ASM_H
