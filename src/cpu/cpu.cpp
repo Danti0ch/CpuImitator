@@ -1,9 +1,24 @@
 #include "cpu.h"
 
+// TODO: fix out with size = 0
+
+static void AsmCodeConstructor(asm_code* code_array, char const * const bin_file_name);
+
+static void AsmCodeDestructor(asm_code* code_array);
+
 static void CpuConstructor(cpu_t* proc);
-static asm_code get_asm_code(char const * const code_file_name);
+
+static void CpuDestructor(cpu_t* proc);
+
 static int get_arg(char* p_code, cpu_t* proc);
+
 static void set_to_mem(char* p_code, cpu_t* proc, int arg);
+
+static ERROR_CODES change_pix_val(cpu_t* proc, int n_pix);
+
+static void show_graphic(cpu_t* proc);
+
+static char get_pix_symb(cpu_t* proc, int x, int y);
 
 #define DEF_CMD(name, num, args, code)					\
 case CMD_##name:										\
@@ -11,14 +26,19 @@ case CMD_##name:										\
 	cpu_storage.registers[AX] += 1 + (args) * ARG_SIZE;	\
 	break;
 
-void Proccessing(char const * const asm_code_name){
+void Proccessing(char const * const bin_file_name){
 
-	assert(asm_code_name != NULL);
+	assert(bin_file_name != NULL);
 
-	asm_code code_array = get_asm_code(asm_code_name);
-	
+	asm_code code_array = {};
+	AsmCodeConstructor(&code_array, bin_file_name);
+
 	cpu_t cpu_storage = {};
 	CpuConstructor(&cpu_storage);
+
+	// TODO: проверка сигнатуры и версии
+	// TODO: пофиксить setpix
+	// TODO: пофиксить draw
 
 	for(;;){
 		switch((char)(code_array.p[cpu_storage.registers[AX]] & CMD_NUM_MASK)){
@@ -30,13 +50,11 @@ void Proccessing(char const * const asm_code_name){
 	}
 }
 
-static asm_code get_asm_code(char const * const code_file_name){
+static void AsmCodeConstructor(asm_code* code_array, char const * const bin_file_name){
 	
-	assert(code_file_name != NULL);
+	assert(bin_file_name != NULL);
 
-	asm_code code_array = {};
-
-	FILE *code_file = fopen(code_file_name, "rb");
+	FILE *code_file = fopen(bin_file_name, "rb");
 
 	assert(code_file != NULL);
 	
@@ -44,27 +62,58 @@ static asm_code get_asm_code(char const * const code_file_name){
 	size_t file_size = ftell(code_file);
 	fseek(code_file, 0, SEEK_SET);
 
-	code_array.p = (char*)calloc(file_size, sizeof(char));
-	code_array.len = file_size;
+	code_array->p = (char*)calloc(file_size, sizeof(char));
+	assert(code_array->p != NULL);
 
-	// assert(fread(code_array.p, sizeof(char), file_size, code_file) != file_size);
-	fread(code_array.p, sizeof(char), file_size, code_file);
+	code_array->len = file_size;
+
+	assert(fread(code_array->p, sizeof(char), file_size, code_file) == file_size);
 	fclose(code_file);
 
-	return code_array;
+	return;
+}
+
+static void AsmCodeDestructor(asm_code* code_array){
+
+	assert(code_array != NULL);
+
+	free(code_array->p);
+	code_array->p = (char*)POISON_POINTER;
+	code_array->len = 0;
+
+	return;
 }
 
 static void CpuConstructor(cpu_t* proc){
 
 	assert(proc != NULL);
 
-	assert(StackConstructor(&(proc->stk), STACK_INIT_SIZE) == ERROR_CODE::OK);
+	assert(StackConstructor(&(proc->stk), STACK_INIT_SIZE)        == ERROR_CODE::OK);
+	assert(StackConstructor(&(proc->call_stack), STACK_INIT_SIZE) == ERROR_CODE::OK);
 
 	proc->p_ram = (int*)calloc(RAM_SIZE, sizeof(int));
+	assert(proc->p_ram != NULL);
 
+	proc->p_graphic_ram = (char*)proc->p_ram + GPU_RAM_POS;
+
+	memset(proc->p_graphic_ram, 0x00, GPU_RAM_SIZE);
+	
 	proc->registers[AX] = N_SIGNATURES;
 
-	assert(proc->p_ram != NULL);
+	return;
+}
+
+static void CpuDestructor(cpu_t* proc){
+
+	assert(proc != NULL);
+
+	assert(StackDestructor(&(proc->stk))        == ERROR_CODE::OK);
+	assert(StackDestructor(&(proc->call_stack)) == ERROR_CODE::OK);
+
+	free(proc->p_ram);
+
+	proc->p_ram 		= (int*)POISON_POINTER;
+	proc->p_graphic_ram = (char*)POISON_POINTER;
 
 	return;
 }
@@ -84,9 +133,7 @@ static int get_arg(char* p_code, cpu_t* proc){
 		arg = proc->registers[*(p_code + 1)];
 	}
 	else{
-		// TODO: запендюрить эту херню в макрос
-		printf("%d: Wrong command format", proc->registers[AX]);
-		assert(0);
+		WRONG_CMD_MSG
 	}
 	if(*p_code & RAM_POS){
 		Sleep(RAM_CALLBACK_TIME);
@@ -110,8 +157,7 @@ static void set_to_mem(char* p_code, cpu_t* proc, int arg){
 		ram_pos = proc->registers[*(p_code + 1)];
 	}
 	else{
-		printf("%d: Wrong command format", proc->registers[AX]);
-		assert(0);
+		WRONG_CMD_MSG
 	}
 
 	if(*p_code & RAM_POS){
@@ -123,9 +169,64 @@ static void set_to_mem(char* p_code, cpu_t* proc, int arg){
 		proc->registers[*(p_code + 1)] = arg;
 	}
 	else{
-		printf("%d: Wrong command format", proc->registers[AX]);
-		assert(0);
+		WRONG_CMD_MSG
 	}
 
 	return;
+}
+
+static ERROR_CODES change_pix_val(cpu_t* proc, int n_pix){
+
+	assert(proc != NULL);
+
+
+	if(n_pix > GPU_RAM_SIZE * N_BITS_IN_BYTE || n_pix < 0){
+		printf("ERROR: the coordinates must not exceed the value %d\n", WINDOW_SIDE);
+		return ERROR_CODES::NOT_OK;
+	}
+
+	int byte_offset = n_pix / N_BITS_IN_BYTE;
+	int bit_offset  = n_pix % N_BITS_IN_BYTE;
+
+	*(proc->p_graphic_ram + byte_offset) ^= 1 << bit_offset;
+
+	return ERROR_CODES::OK;
+}
+
+// TODO: побайтовый вывод
+// возможно нужно сделать архитектуру под построковый вывод? или ускорение неважно?
+static void show_graphic(cpu_t* proc){
+
+	assert(proc != NULL);
+	
+	for(int y = 0; y < WINDOW_SIDE; y++){
+		for(int x = 0; x < WINDOW_SIDE; x++){
+
+			int bit_offset = y * WINDOW_SIDE + x;
+
+			char pix = get_pix_symb(proc, x, y);
+			printf("%c", pix);
+		}
+		printf("\n");
+	}
+	printf("\n_____________________________________________\n");
+}
+
+static char get_pix_symb(cpu_t* proc, int x, int y){
+
+	assert(proc != NULL);
+
+	assert((x < WINDOW_SIDE) && (y < WINDOW_SIDE));
+
+	int byte_offset = (y * WINDOW_SIDE + x) / N_BITS_IN_BYTE;
+	int bit_offset  = (y * WINDOW_SIDE + x) % N_BITS_IN_BYTE;
+
+	char byte = *(proc->p_graphic_ram + byte_offset);
+
+	if(byte & (1 << bit_offset)){
+		return pix_1;
+	}
+	else{
+		return pix_0;
+	}
 }

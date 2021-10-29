@@ -2,3 +2,11 @@
 *.bin
 *.exe
 *.txt
+*.txt
+*.txtr
+build/quadratic_eq
+build/asm.txt
+build/fact
+src/cmd_definitions.h.gch
+src/cpu/Рефакторинг
+src/cpu/Stack/

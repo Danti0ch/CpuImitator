@@ -1,9 +1,6 @@
 
 #include "asm.h"
 
-// TODO: добавить регистры и опер память, парсинг параметров
-// TODO: optional [переменное количество параметров]
-
 #define PREPROCCESOR_TO_STRING(name) #name
 
 #define DEF_CMD(name, num, args, code)							\
@@ -18,8 +15,6 @@
 	}															\
 	else
 
-// TODO: сделать без буферизации, замерить время
-// TODO: добавить функцию для обработки строки, корректность ввода, убрать комментарии и тп
 void Disassembling(char const * const code_name, char const * const asm_name){
 
 	assert(in_asm_name != NULL);

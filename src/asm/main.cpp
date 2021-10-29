@@ -3,6 +3,6 @@
 
 int main(const int argc, char const * const argv[]){
 
-	Assembling("asm.txt", "asm.bin");
+	Compile("asm.txt", "asm.bin");
 	return 0;
 }
