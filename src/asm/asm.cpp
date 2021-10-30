@@ -19,6 +19,10 @@ static int is_jump(char const * str);
 																			\
 		code_array[ip++] = (num) | cmd_info.arg.type;						\
 																			\
+		if(((num) >= MIN_JMP_NUM) && ((num) <= MAX_JMP_NUM)){				\
+			jumps_loc[n_line] = ip;												\
+		}																	\
+																			\
 		for(int n_arg = 0; n_arg < cmd_info.n_args; n_arg++){				\
 			*(int*)(code_array + ip) = cmd_info.arg.value[n_arg];			\
 			ip += ARG_SIZE;													\
@@ -44,44 +48,53 @@ void Compile(char const * const asm_file_name, char const * const bin_file_name)
 	char *code_array = init_code_array();
 
 	char labels[MAX_INSTRUCTIONS_NUM][MAX_LABEL_SIZE] = {};
+	char jumps_loc[MAX_INSTRUCTIONS_NUM] 			  = {};
 
-	for(int stage = 0; stage < N_STAGES; stage++){
+	int ip    = N_SIGNATURES;
+	int n_cmd = 0;
 
-		int ip    = N_SIGNATURES;
-		int n_cmd = 0;
+	// STAGE 1: собираем информацию о всех коммандах и о позициях меток
 
-		for(int n_line = 0; n_line < asm_text.num_lines; n_line++){
+	for(int n_line = 0; n_line < asm_text.num_lines; n_line++){
 
-			_cmd_info cmd_info = {};
+		_cmd_info cmd_info = {};
 
-			ERROR_CODES parse_res = parse_cmd(&cmd_info, asm_text.p_lines[n_line].pointer, labels, &ip);
+		ERROR_CODES parse_res = parse_cmd(&cmd_info, asm_text.p_lines[n_line].pointer, labels, &ip);
 
-			if(parse_res == ERROR_CODES::OK);
-			else if((parse_res == ERROR_CODES::EMPTY_LINE) || (parse_res == ERROR_CODES::LABEL)){
-				continue;
-			}
-			else if(parse_res == ERROR_CODES::WRONG_FORMAT){
+		if(parse_res == ERROR_CODES::OK);
+		else if(parse_res == ERROR_CODES::WRONG_FORMAT){
 
-				LOG_ERROR_MSG("invalid format");
-				return;
-			}
-			else if(parse_res == ERROR_CODES::WRONG_REGISTER_NAME){
+			LOG_ERROR_MSG("invalid format");
+			return;
+		}
+		else if(parse_res == ERROR_CODES::WRONG_REGISTER_NAME){
 
-				LOG_ERROR_MSG("invalid register name");
-				return;
-			}
-			else if((parse_res == ERROR_CODES::WRONG_LABEL_NAME) && (stage == 1)){
+			LOG_ERROR_MSG("invalid register name");
+			return;
+		}
+		else if((parse_res == ERROR_CODES::EMPTY_LINE) || (parse_res == ERROR_CODES::LABEL)){
+			continue;
+		}
 
+		#include "../cmd_definitions.h"
+		/* else */{
+			LOG_ERROR_MSG("invalid command name");
+			return;
+		}
+
+		n_cmd++;
+	}
+
+	// STAGE 2: устанавливаем позиции меток в аргументы джампов
+	for(int n_line = 0; n_line < MAX_INSTRUCTIONS_NUM; n_line++){
+
+		if(jumps_loc[n_line]){
+			int label_ip = get_label_ip(asm_text.p_lines[n_line].pointer, labels);
+
+			if(label_ip == 0){
 				LOG_ERROR_MSG("invalid label name");
-				return;
 			}
-			#include "../cmd_definitions.h"
-			/* else */{
-				LOG_ERROR_MSG("invalid command name");
-				return;
-			}
-
-			n_cmd++;
+			*(int*)(code_array + jumps_loc[n_line]) = label_ip;
 		}
 	}
 
@@ -138,10 +151,8 @@ static ERROR_CODES parse_label(char const * cmd_str, char labels[][MAX_LABEL_SIZ
 		int label_len = strlen(label_name);
 
 		if(label_name[label_len - 1] == ':'){
-
 			label_name[label_len - 1] = '\0';
 			strcpy(labels[*ip], label_name);
-
 			return ERROR_CODES::LABEL;
 		}
 		else{
@@ -185,13 +196,11 @@ static ERROR_CODES parse_cmd(_cmd_info *cmd_info, char const * cmd_str, char lab
 	str_pos = 0;
 
 	if(is_jump(cmd_info->name)){
+		char label_name[MAX_INSTR_LEN];
 
-		cmd_info->arg.value[cmd_info->n_args++] = get_label_ip;
+		sscanf(cmd_str, " %s%n", label_name, &str_pos);
+		cmd_info->arg.value[cmd_info->n_args++] = -1;
 		cmd_info->arg.type |= IMMED_CONST_POS;
-
-		if(get_label_ip == 0){
-			return WRONG_LABEL_NAME;
-		}
 	}
 	else if(sscanf(cmd_str, " %d%n", &immed_const_val, &str_pos) == 1){
 
@@ -250,9 +259,12 @@ static int get_label_ip(char const *cmd_str, char labels[][MAX_LABEL_SIZE]){
 	assert(cmd_str != NULL);
 	assert(labels  != NULL);
 
+	char jump_name[MAX_INSTR_LEN];
 	char label_name[MAX_LABEL_SIZE];
+	int arg_pos = 0;
 
-	sscanf(cmd_str, " %s", label_name);
+	sscanf(cmd_str, "%[A-Z]%n", jump_name, &arg_pos);
+	sscanf(cmd_str + arg_pos, " %s", label_name);
 
 	for(int n_cmd = N_SIGNATURES; n_cmd < MAX_INSTRUCTIONS_NUM; n_cmd++){
 		
@@ -261,7 +273,7 @@ static int get_label_ip(char const *cmd_str, char labels[][MAX_LABEL_SIZE]){
 		}
 	}
 
-	return -1;
+	return 0;
 }
 
 static int is_jump(char const * str){
