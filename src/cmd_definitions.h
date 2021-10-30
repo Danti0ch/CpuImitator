@@ -14,9 +14,12 @@ DEF_CMD(OUT, 1, 0,
 
 DEF_CMD(IN, 2, 0,
 {	
-	int x = 0;
-	scanf("%d", &x);
-	_PUSH(x * ARG_PRECISION);
+	double dx = 0;
+	scanf("%lf", &dx);
+
+	int x = (int)round(dx * ARG_PRECISION);
+
+	_PUSH(x);
 })
 
 DEF_CMD(PUSH, 4, 1,
@@ -31,7 +34,7 @@ DEF_CMD(TOP, 5, 0,
 
 DEF_CMD(POP, 6, 1,
 {
-	set_to_mem(code_array.p + cpu_storage.registers[AX], &cpu_storage, _POP);
+	_HLT_IF(set_to_mem(code_array.p + cpu_storage.registers[AX], &cpu_storage, _POP));
 })
 
 DEF_CMD(ADD, 8, 0,
@@ -69,15 +72,17 @@ DEF_CMD(DIV, 11, 0,
 DEF_CMD(ROOT, 12, 0,
 {
 	int x = _POP;
-	double x_ = x;
-	x_ /= (double)ARG_PRECISION;
+	double dx = x;
 
-	x_ = sqrt(x_);
-	if(fabs(x_) <= PRECISION_FOR_ROOT){
+	dx /= ARG_PRECISION;
+
+	dx = sqrt(dx);
+
+	if(fabs(dx) <= EPS){
 		_PUSH(0);
 	}
 	else{
-		x = ((int)x_) * ARG_PRECISION;
+		x = (int)round(dx * ARG_PRECISION);
 		_PUSH(x);
 	}
 })
@@ -163,13 +168,18 @@ DEF_CMD(JNE, 26, 1,
 
 DEF_CMD(CALL, 27, 1,
 {	
+	// TODO: разборки с адресованием
 	StackPush(&(cpu_storage.call_stack), cpu_storage.registers[AX] + 1 + ARG_SIZE);
-	_JMP(_GET_ARG(0));
+	int function_pos = _GET_ARG(0);
+
+	_JMP(function_pos);
 })
 
 DEF_CMD(RET, 28, 0,
 {
-	int ip = StackPop(&(cpu_storage.call_stack));
-	// TODO: fix
-	_JMP(ip + ARG_SIZE);
+	int call_function_pos = StackPop(&(cpu_storage.call_stack));
+	// TODO: разборки с адресом
+	_JMP(call_function_pos + ARG_SIZE);
 })
+
+// TODO: сделать смешную комманду

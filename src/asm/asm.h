@@ -8,39 +8,53 @@
 #include "text_storage.h"
 #include "../cmd_constants.h"
 
-const int MAX_LABEL_SIZE = 20;
+// максимальная длина метки
+const int MAX_LABEL_SIZE  = 20;
+
 const int INVALID_CMD_NUM = -1;
 
-const int STAGE1 = 1;
-const int STAGE2 = 2;
+const char jump_names[N_JUMPS][MAX_INSTR_LEN] = {
+	"JMP", "JA", "JB", "JE", "JAE", "JBE", "JNE", "CALL"
+};
+
+const int N_STAGES = 2;
 
 enum class ERROR_CODES{
 	OK = 0,
 	WRONG_REGISTER_NAME,
 	WRONG_FORMAT,
 	EMPTY_LINE,
-	CMD_JUMP,
 	LABEL,
-	WRONG_JMP_ARG
+	WRONG_LABEL_NAME
 };
 
-struct _cmd_arg{
+// структура для хранения аргументов и типа команды
+
+struct cmd_arg{
 	int value[MAX_ARGS_NUM];
 	char type;
 };
 
-struct _cmd_string{
+// структура для хранения информации о комманде
+struct _cmd_info{
 	char 		name[MAX_INSTR_LEN];
-	_cmd_arg 	arg;
+	cmd_arg 	arg;
 
 	int 		n_args;
 };
 
 #define REGISTER_FORMAT_CHECK						\
 													\
-	if(cmd->arg.value[0]  >= N_REGISTERS){			\
+	if(cmd_info->arg.value[0]  >= N_REGISTERS){			\
 		return ERROR_CODES::WRONG_REGISTER_NAME;	\
 	}
+
+#define LOG_ERROR_MSG(msg)														\
+																				\
+	printf("ERROR from file (%s): %s\n"											\
+		   "\t[%d]: %s\n", 														\
+		   asm_file_name, (msg), n_line + 1, asm_text.p_lines[n_line].pointer);	\
+	destruct_code_array(code_array);
 
 void Compile(char const * const in_asm_name, char const * const out_asm_name);
 

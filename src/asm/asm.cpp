@@ -1,32 +1,26 @@
-
 #include "asm.h"
-
-static void destruct_code_array(char* code_array);
 
 static char* init_code_array();
 
+static void destruct_code_array(char* code_array);
 
-static ERROR_CODES parse_label(char const * str, char labels[][MAX_LABEL_SIZE], int* ip);
+static ERROR_CODES parse_label(char const * cmd_str, char labels[][MAX_LABEL_SIZE], int* ip);
 
-static ERROR_CODES parse_cmd(_cmd_string *cmd, char const * str, char labels[][MAX_LABEL_SIZE], int* ip, int mode);
+static ERROR_CODES parse_cmd(_cmd_info *cmd_info, char const * str, char labels[][MAX_LABEL_SIZE], int* ip);
 
-/*
-static ERROR_CODES parse_jumps(char const * str, _cmd_string* cmd, char labels[][MAX_LABEL_SIZE]);
-*/
+static int get_label_ip(char const *cmd_str, char labels[][MAX_LABEL_SIZE]);
 
-static ERROR_CODES jmp_proccessing(char const *str, _cmd_string* cmd, char labels[][MAX_LABEL_SIZE]);
-
-int IS_CMD_JUMP(char *str);
+static int is_jump(char const * str);
 
 #define PREPROCCESOR_TO_STRING(name) #name
 
 #define DEF_CMD(_name, num, args, code)										\
-	if(strcmp(PREPROCCESOR_TO_STRING(_name), cmd_string.name) == 0){		\
+	if(strcmp(PREPROCCESOR_TO_STRING(_name), cmd_info.name) == 0){			\
 																			\
-		code_array[ip++] = num | cmd_string.arg.type;						\
+		code_array[ip++] = (num) | cmd_info.arg.type;						\
 																			\
-		for(int n_arg = 0; n_arg < cmd_string.n_args; n_arg++){				\
-			*(int*)(code_array + ip) = cmd_string.arg.value[n_arg];			\
+		for(int n_arg = 0; n_arg < cmd_info.n_args; n_arg++){				\
+			*(int*)(code_array + ip) = cmd_info.arg.value[n_arg];			\
 			ip += ARG_SIZE;													\
 		}																	\
 	}																		\
@@ -40,97 +34,61 @@ void Compile(char const * const asm_file_name, char const * const bin_file_name)
 	assert(bin_file_name != NULL);
 	assert(asm_file_name != bin_file_name);
 
-	text_storage asm_content = {};
-	if(get_text_storage(asm_file_name, &asm_content) != func_codes::OK){
-		printf("error: file reading\n");
+	text_storage asm_text = {};
+
+	if(get_text_storage(asm_file_name, &asm_text) != func_codes::OK){
+		printf("error: file can't be readen\n");
+		return;
 	};
 
 	char *code_array = init_code_array();
 
 	char labels[MAX_INSTRUCTIONS_NUM][MAX_LABEL_SIZE] = {};
 
-	int ip = N_SIGNATURES;
+	for(int stage = 0; stage < N_STAGES; stage++){
 
-	int n_cmd = 0;
+		int ip    = N_SIGNATURES;
+		int n_cmd = 0;
 
-	// STAGE 1: PARSING CMDS
-	for(int n_line = 0; n_line < asm_content.num_lines; n_line++){
-		printf("%d\n", n_line);
-		_cmd_string cmd_string = {};
+		for(int n_line = 0; n_line < asm_text.num_lines; n_line++){
 
-		ERROR_CODES parse_res = parse_cmd(&cmd_string, asm_content.p_lines[n_line].pointer, labels, &ip, STAGE1);
+			_cmd_info cmd_info = {};
 
-		if(parse_res == ERROR_CODES::OK);
-		else if(parse_res == ERROR_CODES::WRONG_FORMAT){
-			printf("ERROR from file (%s): wrong format\n"
-				   "\t[%d]: %s\n", 
-				   asm_file_name, n_cmd + 1, asm_content.p_lines[n_cmd].pointer);
+			ERROR_CODES parse_res = parse_cmd(&cmd_info, asm_text.p_lines[n_line].pointer, labels, &ip);
 
-			destruct_code_array(code_array);
-			return;
+			if(parse_res == ERROR_CODES::OK);
+			else if((parse_res == ERROR_CODES::EMPTY_LINE) || (parse_res == ERROR_CODES::LABEL)){
+				continue;
+			}
+			else if(parse_res == ERROR_CODES::WRONG_FORMAT){
+
+				LOG_ERROR_MSG("invalid format");
+				return;
+			}
+			else if(parse_res == ERROR_CODES::WRONG_REGISTER_NAME){
+
+				LOG_ERROR_MSG("invalid register name");
+				return;
+			}
+			else if((parse_res == ERROR_CODES::WRONG_LABEL_NAME) && (stage == 1)){
+
+				LOG_ERROR_MSG("invalid label name");
+				return;
+			}
+			#include "../cmd_definitions.h"
+			/* else */{
+				LOG_ERROR_MSG("invalid command name");
+				return;
+			}
+
+			n_cmd++;
 		}
-		else if(parse_res == ERROR_CODES::WRONG_REGISTER_NAME){
-
-			printf("ERROR from file (%s): register names must be ax - %cx formatted\n"
-				   "\t[%d]: %s\n", 
-				   asm_file_name, N_REGISTERS + 'a', n_cmd + 1, asm_content.p_lines[n_cmd].pointer);
-
-			destruct_code_array(code_array);
-			return;
-		}
-		else if(parse_res == ERROR_CODES::WRONG_JMP_ARG){
-
-			printf("ERROR from file (%s): no label found for this jump\n"
-				   "\t[%d]: %s\n", 
-				   asm_file_name, n_cmd + 1, asm_content.p_lines[n_cmd].pointer);
-
-			destruct_code_array(code_array);
-			return;
-		}
-		else if((parse_res == ERROR_CODES::EMPTY_LINE) ||(parse_res == ERROR_CODES::LABEL) || (parse_res == ERROR_CODES::CMD_JUMP)){
-			continue;
-		}
-		#include "../cmd_definitions.h"
-		/* else */{
-			printf("ERROR from file (%s): invalid command name\n"
-				   "\t[%d]: %s\n", 
-				   asm_file_name, n_cmd + 1, asm_content.p_lines[n_cmd].pointer);
-
-			destruct_code_array(code_array);
-			return;
-		}
-		meow
-		n_cmd++;
 	}
 
-	n_cmd = 0;
-	// STAGE 2: PARSING JUMPS
-	ip = N_SIGNATURES;
-	for(int n_line = 0; n_line < asm_content.num_lines; n_line++){
-		
-		_cmd_string cmd_string = {};
+	clear_mem_storage(&asm_text);
 
-		ERROR_CODES parse_res = parse_cmd(&cmd_string, asm_content.p_lines[n_line].pointer, labels, &ip, STAGE2);
-
-		if(parse_res == ERROR_CODES::OK);
-		else if((parse_res == ERROR_CODES::EMPTY_LINE) ||(parse_res == ERROR_CODES::LABEL)){
-			continue;
-		}
-
-		#include "../cmd_definitions.h"
-		/* else */{
-			printf("ERROR from file (%s): invalid command name\n"
-				   "\t[%d]: %s\n", 
-				   asm_file_name, n_cmd + 1, asm_content.p_lines[n_cmd].pointer);
-
-			destruct_code_array(code_array);
-			return;
-		}
-
-		n_cmd++;
-	}
-	meow
-	clear_mem_storage(&asm_content);
+	// фиктивная HLT в конце кода
+	code_array[ip++] = 0;
 
 	FILE* code_file = fopen(bin_file_name, "wb");
 	fwrite(code_array, sizeof(char), ip, code_file);
@@ -140,6 +98,8 @@ void Compile(char const * const asm_file_name, char const * const bin_file_name)
 
 	return;
 }
+
+#undef DEF_CMD
 
 static char* init_code_array(){
 
@@ -162,21 +122,24 @@ static void destruct_code_array(char* code_array){
 	free(code_array);
 }
 
-static ERROR_CODES parse_label(char const * str, char labels[][MAX_LABEL_SIZE], int* ip){
+static ERROR_CODES parse_label(char const * cmd_str, char labels[][MAX_LABEL_SIZE], int* ip){
 
-	assert(str    != NULL);
+	assert(cmd_str    != NULL);
 	assert(labels != NULL);
 
-	if(strlen(str) == 0){
+	if(strlen(cmd_str) == 0){
 		return ERROR_CODES::EMPTY_LINE;
 	}
 
 	char label_name[MAX_LABEL_SIZE] = "";
-	int str_pos = 0;
+	
+	if(sscanf(cmd_str, "%s", label_name) == 1){
+		
+		int label_len = strlen(label_name);
 
-	if(sscanf(str, "%s%n", label_name, &str_pos) == 1){
+		if(label_name[label_len - 1] == ':'){
 
-		if(label_name[strlen(label_name) - 1] == ':'){
+			label_name[label_len - 1] = '\0';
 			strcpy(labels[*ip], label_name);
 
 			return ERROR_CODES::LABEL;
@@ -185,21 +148,20 @@ static ERROR_CODES parse_label(char const * str, char labels[][MAX_LABEL_SIZE], 
 			return ERROR_CODES::OK;
 		}
 	}
-
 	return ERROR_CODES::EMPTY_LINE;
 }
 
-static ERROR_CODES parse_cmd(_cmd_string *cmd, char const * str, char labels[][MAX_LABEL_SIZE], int* ip, int mode){
+static ERROR_CODES parse_cmd(_cmd_info *cmd_info, char const * cmd_str, char labels[][MAX_LABEL_SIZE], int* ip){
 
-	assert(cmd != NULL);
-	assert(str != NULL);
+	assert(cmd_info != NULL);
+	assert(cmd_str != NULL);
 
-	if(strlen(str) == 0){
+	if(strlen(cmd_str) == 0){
 		return ERROR_CODES::EMPTY_LINE;
 	}
 
 	// избавляемся от комментариев
-	char *p_comment = strchr(str, ';');
+	char *p_comment = strchr(cmd_str, ';');
 	if(p_comment != NULL){
 		*p_comment = '\0';
 	}
@@ -207,127 +169,108 @@ static ERROR_CODES parse_cmd(_cmd_string *cmd, char const * str, char labels[][M
 	int immed_const_val  = 0;
 	char reg_name        = 0;
 	
+	// позиция последнего считаного символа
 	int str_pos = 0;
-	cmd->n_args = 0;
+	cmd_info->n_args = 0;
 
-	// TODO: может стоять поделить это всё по функциям???
-
-	//TODO: сделать фиктивную HLT в конце
-	//TODO: пофиксить ввод даблов
-	if(parse_label(str, labels, ip) == ERROR_CODES::LABEL){
+	if(parse_label(cmd_str, labels, ip) == ERROR_CODES::LABEL){
 		return ERROR_CODES::LABEL;
 	}
 
-	if(sscanf(str, " %[A-Z]%n", cmd->name, &str_pos) != 1){
+	if(sscanf(cmd_str, " %[A-Z]%n", cmd_info->name, &str_pos) != 1){
 		return ERROR_CODES::WRONG_FORMAT;
 	}
 
-	str += str_pos;
-
+	cmd_str += str_pos;
 	str_pos = 0;
 
-	// TODO: обработка одинаковых меток
-	if(IS_CMD_JUMP(cmd->name) == 0){
+	if(is_jump(cmd_info->name)){
 
-		if(mode == STAGE1){
-			cmd->arg.value[cmd->n_args++] = INVALID_CMD_NUM;
+		cmd_info->arg.value[cmd_info->n_args++] = get_label_ip;
+		cmd_info->arg.type |= IMMED_CONST_POS;
 
-			return ERROR_CODES::OK;
-		}
-		else{
-			return jmp_proccessing(str, cmd, labels);
+		if(get_label_ip == 0){
+			return WRONG_LABEL_NAME;
 		}
 	}
+	else if(sscanf(cmd_str, " %d%n", &immed_const_val, &str_pos) == 1){
 
-	else if(sscanf(str, " %d%n", &immed_const_val, &str_pos) == 1){
-
-		cmd->arg.value[cmd->n_args++] = immed_const_val * ARG_PRECISION;
-		cmd->arg.type |= IMMED_CONST_POS;
+		cmd_info->arg.value[cmd_info->n_args++] = immed_const_val * ARG_PRECISION;
+		cmd_info->arg.type |= IMMED_CONST_POS;
 	}
 
-	else if(sscanf(str, " %1[a-z]x%n", &reg_name, &str_pos) == 1){
-		cmd->arg.value[cmd->n_args++] = reg_name - 'a';
+	else if(sscanf(cmd_str, " %1[a-z]x%n", &reg_name, &str_pos) == 1){
+
+		cmd_info->arg.value[cmd_info->n_args++] = reg_name - 'a';
 		
 		REGISTER_FORMAT_CHECK
 
-		cmd->arg.type |= REG_POS;
+		cmd_info->arg.type |= REG_POS;
 	}
 
-	else if(sscanf(str," [%d]%n", &immed_const_val, &str_pos) == 1){
+	else if(sscanf(cmd_str," [%d]%n", &immed_const_val, &str_pos) == 1){
 
-		cmd->arg.value[cmd->n_args++] = immed_const_val;
+		cmd_info->arg.value[cmd_info->n_args++] = immed_const_val;
 
-		cmd->arg.type |= RAM_POS;
-		cmd->arg.type |= IMMED_CONST_POS;
+		cmd_info->arg.type |= RAM_POS;
+		cmd_info->arg.type |= IMMED_CONST_POS;
 	}
 
-	else if(sscanf(str, " [%1[a-z]x]%n", &reg_name, &str_pos) == 1){
+	else if(sscanf(cmd_str, " [%1[a-z]x]%n", &reg_name, &str_pos) == 1){
 
-		cmd->arg.value[cmd->n_args++] = reg_name - 'a';
+		cmd_info->arg.value[cmd_info->n_args++] = reg_name - 'a';
 		
 		REGISTER_FORMAT_CHECK
 		
-		cmd->arg.type |= RAM_POS;
-		cmd->arg.type |= REG_POS;
+		cmd_info->arg.type |= RAM_POS;
+		cmd_info->arg.type |= REG_POS;
 	}
 
-	else if(sscanf(str, " [%1[a-z]x + %d]%n", &reg_name, &immed_const_val, &str_pos) == 2){
+	else if(sscanf(cmd_str, " [%1[a-z]x + %d]%n", &reg_name, &immed_const_val, &str_pos) == 2){
 
-		cmd->arg.value[cmd->n_args++] = reg_name - 'a';
-		cmd->arg.value[cmd->n_args++] = immed_const_val;
+		cmd_info->arg.value[cmd_info->n_args++] = reg_name - 'a';
+		cmd_info->arg.value[cmd_info->n_args++] = immed_const_val;
 
 		REGISTER_FORMAT_CHECK
 		
-		cmd->arg.type |= RAM_POS;
-		cmd->arg.type |= REG_POS;
-		cmd->arg.type |= IMMED_CONST_POS;
+		cmd_info->arg.type |= RAM_POS;
+		cmd_info->arg.type |= REG_POS;
+		cmd_info->arg.type |= IMMED_CONST_POS;
 	}
 
-	if(strlen(str + str_pos) != 0){
+	if(strlen(cmd_str + str_pos) != 0){
 		return ERROR_CODES::WRONG_FORMAT;
 	}
 
 	return ERROR_CODES::OK;
 }
 
-static ERROR_CODES jmp_proccessing(char const *str, _cmd_string* cmd, char labels[][MAX_LABEL_SIZE]){
+static int get_label_ip(char const *cmd_str, char labels[][MAX_LABEL_SIZE]){
 
-	assert(str     != NULL);
-	assert(cmd     != NULL);
+	assert(cmd_str != NULL);
 	assert(labels  != NULL);
 
-	char jump_arg_name[MAX_LABEL_SIZE];
+	char label_name[MAX_LABEL_SIZE];
 
-	sscanf(str, "%s", jump_arg_name);
+	sscanf(cmd_str, " %s", label_name);
 
-	for(int n_cmd = 0; n_cmd < MAX_INSTRUCTIONS_NUM; n_cmd++){
-		if(strcmp(labels[n_cmd], jump_arg_name) == 0){
-			
-			cmd->arg.value[cmd->n_args++] = n_cmd;
-
-			cmd->arg.type |= IMMED_CONST_POS;
-
-			return ERROR_CODES::OK;
+	for(int n_cmd = N_SIGNATURES; n_cmd < MAX_INSTRUCTIONS_NUM; n_cmd++){
+		
+		if(strcmp(labels[n_cmd], label_name) == 0){
+			return n_cmd;
 		}
 	}
 
-	return ERROR_CODES::WRONG_JMP_ARG;
+	return -1;
 }
 
-int IS_CMD_JUMP(char *str){
-	
+static int is_jump(char const * str){
+
 	assert(str != NULL);
 
-	// TODO: FIX
-	if(strcmp("JUMP", str) == 0 || 
-	   strcmp("JA", str)   == 0 ||
-	   strcmp("JB", str)   == 0 ||
-	   strcmp("JE", str)   == 0 ||
-	   strcmp("JAE", str)  == 0 ||
-	   strcmp("JBE", str)  == 0 ||
-	   strcmp("JNE", str)  == 0 ||
-	   strcmp("CALL",str)  == 0){
-		return 0;
+	for(int i = 0; i < N_JUMPS; i++){
+		if(strcmp(str, jump_names[i]) == 0) return 1;
 	}
-	return -1;
+
+	return 0;
 }
