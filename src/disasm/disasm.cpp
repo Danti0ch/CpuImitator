@@ -1,77 +1,109 @@
 
-#include "asm.h"
+#include "disasm.h"
+
+static void AsmCodeConstructor(asm_code* code_array, char const * const bin_file_name);
+
+static void AsmCodeDestructor(asm_code* code_array);
+
+void print_cmd(char* p_cmd, const char* cmd_name, int pos, int n_arg);
 
 #define PREPROCCESOR_TO_STRING(name) #name
 
-#define DEF_CMD(name, num, args, code)							\
-	if(strcmp(PREPROCCESOR_TO_STRING(name)__ cmd_name) == 0){	\
-																\
-		printf("%d\n", num);									\
-		code_array[ip++] = 16;									\
-																\
-		if(n_readen > 1){										\
-			code_array[ip++] = cmd_arg;							\
-		}														\
-	}															\
-	else
+#define DEF_CMD(name, num, args, code)											\
+case CMD_##name:																\
+	print_cmd(code_array.p + ip, PREPROCCESOR_TO_STRING(name), ip, (args));		\
+	ip += 1 + (args) * ARG_SIZE;												\
+	break;
 
-void Disassembling(char const * const code_name, char const * const asm_name){
+void Disassembling(char const * const bin_file_name, char const * const log_file_name){
 
-	assert(in_asm_name != NULL);
-	assert(out_asm_name != NULL);
+	assert(bin_file_name != NULL);
+	assert(log_file_name != NULL);
 
-	// TODO: придумать лучшее имя
-	asm_code *code_array = get_asm_code(code_name);
-	int ip = 0;
+	asm_code code_array = {};
+	AsmCodeConstructor(&code_array, bin_file_name);
 
-	for(int n_cmd = 0; n_cmd < code_array.len; n_cmd++){
+	open_log_file(log_file_name);
 
-		char cmd_name[MAX_INSTR_LEN] = "";
+	int ip = N_SIGNATURES;
+	while(ip < (int)code_array.len){
 
-		int cmd_arg = 0;
+		switch((char)(code_array.p[ip] & CMD_NUM_MASK)){
 
-		int n_readen = sscanf(asm_content.p_lines[n_cmd].pointer, "%[A-Z] %d\n", cmd_name, &cmd_arg);
-
-		printf("%d %s \n", cmd_arg, cmd_name);
-
-		#include "../cmd_definitions.h"
-		/* else */{
-			printf("line %d: wrong format", n_cmd);
-			assert(0);
+			#include "../cmd_definitions.h"
+			default:
+				to_log("ERROR from file (%s): invalid format\n"
+	   				   "\tip = [%d]\n", 
+	   				   bin_file_name, ip);
+				break;
 		}
 	}
 
-	clear_mem_storage(&asm_content);
+	AsmCodeDestructor(&code_array);
 
-	FILE* code_file = fopen(out_asm_name, "wb");
-	fwrite(code_array, sizeof(char), ip, code_file);
+	return;
+}
+
+#undef DEF_CMD
+
+static void AsmCodeConstructor(asm_code* code_array, char const * const bin_file_name){
+	
+	assert(bin_file_name != NULL);
+
+	FILE *code_file = fopen(bin_file_name, "rb");
+
+	assert(code_file != NULL);
+	
+	fseek(code_file, 0, SEEK_END);
+	size_t file_size = ftell(code_file);
+	fseek(code_file, 0, SEEK_SET);
+
+	code_array->p = (char*)calloc(file_size, sizeof(char));
+	assert(code_array->p != NULL);
+
+	code_array->len = file_size;
+
+	assert(fread(code_array->p, sizeof(char), file_size, code_file) == file_size);
 	fclose(code_file);
 
 	return;
 }
 
+static void AsmCodeDestructor(asm_code* code_array){
+
+	assert(code_array != NULL);
+
+	free(code_array->p);
+
+	code_array->len = 0;
+
+	return;
+}
 
 // TODO: прога для функций работы с файлами
-asm_code* get_asm_code(char const * const code_file_name){
+void print_cmd(char* p_cmd, const char* cmd_name, int pos, int n_arg){
 	
-	assert(asm_file_name != NULL);
+	assert(p_cmd != NULL);
 
-	asm_code *code_array = NULL;
+	to_log("%04X | ", pos);
+	to_log("%02X ", *p_cmd & CMD_NUM_MASK);
 
-	FILE *code_file = fopen(code_file_name, "rb");
+	if(n_arg == 1){
 
-	assert(code_file != NULL);
+		int arg_val = *(int*)(p_cmd + 1);
+		to_log("%08X ", arg_val);
+	}
+	else{
+		to_log("%*c ", ARG_SIZE * 2, ' ');
+	}
+
+	to_log("| %s ", cmd_name);
 	
-	fseek(code_file, 0, SEEK_END);
-	size_t file_size = ftello(code_file);
-	fseek(code_file, 0, SEEK_SET);
+	if(n_arg == 1){
+		to_log("%d", *(int*)(p_cmd + 1));
+	}
+	
+	to_log("\n");
 
-	code_array.p = (char*)calloc(file_size, sizeof(char));
-	code_array.len = file_size;
-
-	assert(fread(code_array, sizeof(char), file_size, code_file) != file_size);
-
-	fclose(code_file);
-
-	return code_array
+	return;
 }

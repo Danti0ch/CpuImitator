@@ -3,6 +3,12 @@
 
 int main(const int argc, char const * const argv[]){
 
-	Assembling("../../build/asm.bin", "../../build/disasm.txt");
+	if(argc == 2){
+		Disassembling(argv[1], DEFAULT_LOG_NAME);
+	}
+	else{
+		printf("format should be: disasm.exe [file_name].bin\n");
+	}
+	
 	return 0;
 }

@@ -1,24 +1,22 @@
 #include "cpu.h"
 
-// TODO: fix out with size = 0
-
 static void AsmCodeConstructor(asm_code* code_array, char const * const bin_file_name);
 
 static void AsmCodeDestructor(asm_code* code_array);
 
-static void CpuConstructor(cpu_t* proc);
+static void CpuConstructor(cpu_t* cpu_storage);
 
-static void CpuDestructor(cpu_t* proc);
+static void CpuDestructor(cpu_t* cpu_storage);
 
-static int get_arg(char* p_code, cpu_t* proc);
+static int get_arg(char* p_code, cpu_t* cpu_storage);
 
-static void set_to_mem(char* p_code, cpu_t* proc, int arg);
+static void set_to_mem(char* p_code, cpu_t* cpu_storage, int arg);
 
-static ERROR_CODES change_pix_val(cpu_t* proc, int n_pix);
+static void change_pix_val(cpu_t* cpu_storage, int n_pix, int val);
 
-static void show_graphic(cpu_t* proc);
+static void show_graphic(cpu_t* cpu_storage);
 
-static char get_pix_symb(cpu_t* proc, int x, int y);
+static char get_pix_symb(cpu_t* cpu_storage, int x, int y);
 
 #define DEF_CMD(name, num, args, code)					\
 case CMD_##name:										\
@@ -36,18 +34,27 @@ void Proccessing(char const * const bin_file_name){
 	cpu_t cpu_storage = {};
 	CpuConstructor(&cpu_storage);
 
-	// TODO: проверка сигнатуры и версии
-	// TODO: пофиксить setpix
-	// TODO: пофиксить draw
+	if(code_array.p[0] != INVARIANT_SIGNATURE){
+		LOG_ERROR_MSG("signature is invalid");
+	}
+	if(code_array.p[1] != VERSION){
+		LOG_ERROR_MSG("version is invalid");
+	}
 
 	for(;;){
 		switch((char)(code_array.p[cpu_storage.registers[AX]] & CMD_NUM_MASK)){
 			#include "../cmd_definitions.h"
 			default:
-				assert(0 && "[#] wrong cmd num\n");
+				printf("ip = %d\n", cpu_storage.registers[AX]);
+				LOG_ERROR_MSG("wrong cmd num");
 				break;
 		}
 	}
+
+	AsmCodeDestructor(&code_array);
+	CpuDestructor(&cpu_storage);
+
+	return;
 }
 
 static void AsmCodeConstructor(asm_code* code_array, char const * const bin_file_name){
@@ -84,45 +91,44 @@ static void AsmCodeDestructor(asm_code* code_array){
 	return;
 }
 
-static void CpuConstructor(cpu_t* proc){
+static void CpuConstructor(cpu_t* cpu_storage){
 
-	assert(proc != NULL);
+	assert(cpu_storage != NULL);
 
-	assert(StackConstructor(&(proc->stk), STACK_INIT_SIZE)        == ERROR_CODE::OK);
-	assert(StackConstructor(&(proc->call_stack), STACK_INIT_SIZE) == ERROR_CODE::OK);
+	assert(StackConstructor(&(cpu_storage->stk), STACK_INIT_SIZE)        == ERROR_CODE::OK);
+	assert(StackConstructor(&(cpu_storage->call_stack), STACK_INIT_SIZE) == ERROR_CODE::OK);
 
-	proc->p_ram = (int*)calloc(RAM_SIZE, sizeof(int));
-	assert(proc->p_ram != NULL);
+	cpu_storage->p_ram = (int*)calloc(RAM_SIZE, sizeof(int));
+	assert(cpu_storage->p_ram != NULL);
 
-	proc->p_graphic_ram = (char*)proc->p_ram + GPU_RAM_POS;
+	cpu_storage->p_graphic_ram = (char*)cpu_storage->p_ram + GPU_RAM_POS;
 
-	memset(proc->p_graphic_ram, 0x00, GPU_RAM_SIZE);
+	memset(cpu_storage->p_graphic_ram, 0x00, GPU_RAM_SIZE);
 	
-	proc->registers[AX] = N_SIGNATURES;
+	cpu_storage->registers[AX] = N_SIGNATURES;
 
 	return;
 }
 
-static void CpuDestructor(cpu_t* proc){
+static void CpuDestructor(cpu_t* cpu_storage){
 
-	assert(proc != NULL);
+	assert(cpu_storage != NULL);
 
-	assert(StackDestructor(&(proc->stk))        == ERROR_CODE::OK);
-	assert(StackDestructor(&(proc->call_stack)) == ERROR_CODE::OK);
+	assert(StackDestructor(&(cpu_storage->stk))        == ERROR_CODE::OK);
+	assert(StackDestructor(&(cpu_storage->call_stack)) == ERROR_CODE::OK);
 
-	free(proc->p_ram);
+	free(cpu_storage->p_ram);
 
-	proc->p_ram 		= (int*)POISON_POINTER;
-	proc->p_graphic_ram = (char*)POISON_POINTER;
+	cpu_storage->p_ram 		= (int*)POISON_POINTER;
+	cpu_storage->p_graphic_ram = (char*)POISON_POINTER;
 
 	return;
 }
 
-static int get_arg(char* p_code, cpu_t* proc){
+static int get_arg(char* p_code, cpu_t* cpu_storage){
 	
 	assert(p_code != NULL);
-	assert(proc != NULL);
-	assert((char*)p_code != (char*)proc);
+	assert(cpu_storage != NULL);
 
 	int arg = 0;
 
@@ -130,21 +136,26 @@ static int get_arg(char* p_code, cpu_t* proc){
 		arg = *(int*)(p_code + 1);
 	}
 	else if(*p_code & REG_POS){
-		arg = proc->registers[*(p_code + 1)];
+		arg = cpu_storage->registers[(int)*(p_code + 1)];
 	}
 	else{
-		WRONG_CMD_MSG
+		LOG_ERROR_MSG("wrong cmd type");
 	}
+
 	if(*p_code & RAM_POS){
 		Sleep(RAM_CALLBACK_TIME);
-		assert( arg > 0 && arg < RAM_SIZE);
-		arg = proc->p_ram[arg];
+
+		if( arg < 0 || arg > RAM_SIZE){
+			LOG_ERROR_MSG("invalid ram position");
+		}
+
+		arg = cpu_storage->p_ram[arg];
 	}
 
 	return arg;
 }
 
-static void set_to_mem(char* p_code, cpu_t* proc, int arg){
+static void set_to_mem(char* p_code, cpu_t* cpu_storage, int arg){
 	
 	assert(p_code != NULL);
 
@@ -154,57 +165,59 @@ static void set_to_mem(char* p_code, cpu_t* proc, int arg){
 		ram_pos = *(int*)(p_code + 1);
 	}
 	else if(*p_code & REG_POS){
-		ram_pos = proc->registers[*(p_code + 1)];
+		ram_pos = cpu_storage->registers[(int)*(p_code + 1)];
 	}
 	else{
-		WRONG_CMD_MSG
+		LOG_ERROR_MSG("invalid arg type");
 	}
 
 	if(*p_code & RAM_POS){
 		Sleep(RAM_CALLBACK_TIME);
-		assert( ram_pos > 0 && ram_pos < RAM_SIZE);
-		proc->p_ram[ram_pos] = arg;
+
+		if( ram_pos < 0 || ram_pos > RAM_SIZE){
+			LOG_ERROR_MSG("invalid ram position");
+		}
+		cpu_storage->p_ram[ram_pos] = arg;
 	}
 	else if(*p_code & REG_POS){
-		proc->registers[*(p_code + 1)] = arg;
+		cpu_storage->registers[(int)*(p_code + 1)] = arg;
 	}
 	else{
-		WRONG_CMD_MSG
+		LOG_ERROR_MSG("invalid arg type");
 	}
 
 	return;
 }
 
-static ERROR_CODES change_pix_val(cpu_t* proc, int n_pix){
+static void change_pix_val(cpu_t* cpu_storage, int n_pix, int val){
 
-	assert(proc != NULL);
-
+	assert(cpu_storage != NULL);
 
 	if(n_pix > GPU_RAM_SIZE * N_BITS_IN_BYTE || n_pix < 0){
-		printf("ERROR: the coordinates must not exceed the value %d\n", WINDOW_SIDE);
-		return ERROR_CODES::NOT_OK;
+		LOG_ERROR_MSG("coordinate values are invalid");
 	}
 
 	int byte_offset = n_pix / N_BITS_IN_BYTE;
 	int bit_offset  = n_pix % N_BITS_IN_BYTE;
 
-	*(proc->p_graphic_ram + byte_offset) ^= 1 << bit_offset;
+	if(val == 0){
+		*(cpu_storage->p_graphic_ram + byte_offset) &= (char)~(1 << bit_offset);
+	}
+	else{
+		*(cpu_storage->p_graphic_ram + byte_offset) |= (char)(1 << bit_offset);
+	}
 
-	return ERROR_CODES::OK;
+	return;
 }
 
-// TODO: побайтовый вывод
-// возможно нужно сделать архитектуру под построковый вывод? или ускорение неважно?
-static void show_graphic(cpu_t* proc){
+static void show_graphic(cpu_t* cpu_storage){
 
-	assert(proc != NULL);
+	assert(cpu_storage != NULL);
 	
 	for(int y = 0; y < WINDOW_SIDE; y++){
 		for(int x = 0; x < WINDOW_SIDE; x++){
 
-			int bit_offset = y * WINDOW_SIDE + x;
-
-			char pix = get_pix_symb(proc, x, y);
+			char pix = get_pix_symb(cpu_storage, x, y);
 			printf("%c", pix);
 		}
 		printf("\n");
@@ -212,18 +225,17 @@ static void show_graphic(cpu_t* proc){
 	printf("\n_____________________________________________\n");
 }
 
-static char get_pix_symb(cpu_t* proc, int x, int y){
+static char get_pix_symb(cpu_t* cpu_storage, int x, int y){
 
-	assert(proc != NULL);
-
+	assert(cpu_storage != NULL);
 	assert((x < WINDOW_SIDE) && (y < WINDOW_SIDE));
 
 	int byte_offset = (y * WINDOW_SIDE + x) / N_BITS_IN_BYTE;
 	int bit_offset  = (y * WINDOW_SIDE + x) % N_BITS_IN_BYTE;
 
-	char byte = *(proc->p_graphic_ram + byte_offset);
+	char pix_val = *(cpu_storage->p_graphic_ram + byte_offset);
 
-	if(byte & (1 << bit_offset)){
+	if(pix_val & (1 << bit_offset)){
 		return pix_1;
 	}
 	else{

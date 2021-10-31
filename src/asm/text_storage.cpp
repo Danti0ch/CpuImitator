@@ -77,7 +77,7 @@ enum func_codes get_text_storage(const char *file_name, text_storage *storage){
     size_t num_line = 0;
     size_t num_symbols_in_line = 1;
 
-    for(int ind_buf = 0; ind_buf < storage->len_buf; ind_buf++, num_symbols_in_line++){
+    for(size_t ind_buf = 0; ind_buf < storage->len_buf; ind_buf++, num_symbols_in_line++){
 
         if(is_new_line){
             storage->p_lines[num_line].pointer = &(storage->buffer[ind_buf]);
@@ -103,7 +103,7 @@ enum func_codes write_storage(FILE *output_file, text_storage *storage){
     assert(storage != NULL);
     assert(output_file != NULL);
 
-    for(int i = 0; i < storage->num_lines; i++){
+    for(size_t i = 0; i < storage->num_lines; i++){
         fputs(storage->p_lines[i].pointer, output_file);
         fputc('\n', output_file);
     }
@@ -117,7 +117,7 @@ enum func_codes write_buffer_of_storage(FILE *output_file, text_storage *storage
 
     char *n_symb = storage->buffer;
 
-    for(int n_line = 0; n_line < storage->num_lines; n_line++, n_symb++){
+    for(size_t n_line = 0; n_line < storage->num_lines; n_line++, n_symb++){
         for(; *n_symb != '\0'; n_symb++){
             fputc(*n_symb, output_file);
         }
@@ -151,10 +151,6 @@ int string_cmp(const string *str1, const string *str2, enum sort_flags mode){
     if(str1->pointer == str2->pointer){
         return 0;
     }
-
-    assert(str1->len >= 0);
-    assert(str2->len >= 0);
-
 
     char *str1_stepper = str1->pointer;
     char *str2_stepper = str2->pointer;

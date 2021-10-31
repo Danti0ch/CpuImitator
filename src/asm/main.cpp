@@ -1,8 +1,14 @@
 #include <stdio.h>
 #include "asm.h"
 
-int main(const int argc, char const * const argv[]){
+int main(int const argc, char const * const argv[]){
 
-	Compile("asm.txt", "asm.bin");
+	if(argc == 2){
+		Compile(argv[1], BIN_FILE_NAME);
+	}
+	else{
+		printf("format should be: asm.exe [file_name].txt\n");
+	}
+
 	return 0;
 }

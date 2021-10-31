@@ -14,7 +14,7 @@ const int MAX_LABEL_SIZE  = 20;
 const int INVALID_CMD_NUM = -1;
 
 const char jump_names[N_JUMPS][MAX_INSTR_LEN] = {
-	"JMP", "JA", "JB", "JE", "JAE", "JBE", "JNE", "CALL"
+	"jmp", "ja", "jb", "je", "jae", "jbe", "jne", "call"
 };
 
 const int N_STAGES = 2;
@@ -52,7 +52,7 @@ struct _cmd_info{
 #define LOG_ERROR_MSG(msg)														\
 																				\
 	printf("ERROR from file (%s): %s\n"											\
-		   "\t[%d]: %s\n", 														\
+		   "\t[%u]: %s\n", 														\
 		   asm_file_name, (msg), n_line + 1, asm_text.p_lines[n_line].pointer);	\
 	destruct_code_array(code_array);
 

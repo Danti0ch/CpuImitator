@@ -4,6 +4,7 @@
 #include <limits.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <string.h>
 #include <cstdint>
 #include "log.h"
 
@@ -15,6 +16,7 @@ typedef unsigned long long CANARY;
 const CANARY VALID_CANARY_VALUE = 0xDED64DED;
 const uint32_t HASH_INIT_VALUE  = 0xDED32DED;
 
+#define DEBUG 0
 #define DUMP_ALL defined(TOTAL_DUMP)
 // #define SHOW_POISONS
 #define PROTECTION_LVL0 (defined(DEBUG))
@@ -55,9 +57,9 @@ const TYPE_STACK POISON_ELEM = -111;
 struct stack_location_info{
 	
 	size_t init_n_line;
-	char*  init_file_name;
-	char*  init_func_name;
-	char*  stack_name;
+	char  init_file_name[100];
+	char  init_func_name[100];
+	char  stack_name[100];
 };
 
 struct stack_t{
@@ -85,17 +87,13 @@ struct stack_t{
 	#endif
 };
 
-
-
-// разумно ???
 #define LOC_PARAMS const char* stack_name, const int line, const char* file_name, const char* func_name
 
 #define LOC_PARAMS_TO_STACK(stack)								    \
-	(stack)->location_info.init_n_line    = line;					\
-	(stack)->location_info.init_file_name = (char*)file_name;		\
-	(stack)->location_info.init_func_name = (char*)func_name;		\
-	(stack)->location_info.stack_name     = (char*)stack_name;	    \
-
+	(stack)->location_info.init_n_line = line;						\
+	strcpy((stack)->location_info.init_file_name, file_name);		\
+	strcpy((stack)->location_info.init_func_name, func_name);		\
+	strcpy((stack)->location_info.stack_name, stack_name);			\
 
 #define StackConstructor(obj, cap) _StackConstructor((obj), (cap), #obj, LOCATION)
 

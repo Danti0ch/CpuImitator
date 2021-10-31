@@ -183,7 +183,7 @@ static ERROR_CODE increase_capacity(stack_t *stack){
 		
 	#endif // PROTECTION_LVL1
 
-	for(int i = stack->size; i < stack->capacity; i++){
+	for(size_t i = stack->size; i < stack->capacity; i++){
 		stack->data[i] = POISON_ELEM;
 	}
 	
@@ -272,7 +272,7 @@ static ERROR_CODE get_init_mem(stack_t *stack, size_t init_capacity){
 		
 	#endif // PROTECTION_LVL1
 
-	for(int i = 0; i < stack->capacity; i++){
+	for(size_t i = 0; i < stack->capacity; i++){
 		stack->data[i] = POISON_ELEM;
 	}
 	return ERROR_CODE::OK;
@@ -493,7 +493,7 @@ static void dump_stack_data(const stack_t *stack){
 		size_t n_to_show = stack->size;
 	#endif
 
-	for(int data_counter = 0; data_counter < n_to_show; data_counter++){
+	for(size_t data_counter = 0; data_counter < n_to_show; data_counter++){
 		to_log("*[%5d] = " TYPE_STACK_specif "\n", data_counter, stack->data[data_counter]);
 	}
 
