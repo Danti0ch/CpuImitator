@@ -56,10 +56,10 @@ struct asm_code{
 	size_t len;
 };
 
-#define LOG_ERROR_MSG(msg)			\
-									\
-	printf("ERROR: %s\n", (msg));	\
-									\
+#define LOG_ERROR_MSG(msg)          \
+                                    \
+	printf("ERROR: %s\n", (msg));   \
+                                    \
 	assert(0);
 
 void Proccessing(char const * const bin_file_name);

@@ -9,10 +9,10 @@ void print_cmd(char* p_cmd, const char* cmd_name, int pos, int n_arg);
 
 #define PREPROCCESOR_TO_STRING(name) #name
 
-#define DEF_CMD(name, num, args, code)											\
-case CMD_##name:																\
-	print_cmd(code_array.p + ip, PREPROCCESOR_TO_STRING(name), ip, (args));		\
-	ip += 1 + (args) * ARG_SIZE;												\
+#define DEF_CMD(name, num, args, code)                                          \
+case CMD_##name:                                                                \
+	print_cmd(code_array.p + ip, PREPROCCESOR_TO_STRING(name), ip, (args));     \
+	ip += 1 + (args) * ARG_SIZE;                                                \
 	break;
 
 void Disassembling(char const * const bin_file_name, char const * const log_file_name){

@@ -14,16 +14,16 @@ static int is_jump(char const * str);
 
 #define PREPROCCESOR_TO_STRING(name) #name
 
-#define DEF_CMD(_name, num, args, code)										\
-	if(strcmp(PREPROCCESOR_TO_STRING(_name), cmd_info.name) == 0){			\
-																			\
-		code_array[ip++] = (num) | cmd_info.arg.type;						\
-																			\
-		for(int n_arg = 0; n_arg < cmd_info.n_args; n_arg++){				\
-			*(int*)(code_array + ip) = cmd_info.arg.value[n_arg];			\
-			ip += ARG_SIZE;													\
-		}																	\
-	}																		\
+#define DEF_CMD(_name, num, args, code)                                     \
+	if(strcmp(PREPROCCESOR_TO_STRING(_name), cmd_info.name) == 0){          \
+                                                                            \
+		code_array[ip++] = (num) | cmd_info.arg.type;                       \
+                                                                            \
+		for(int n_arg = 0; n_arg < cmd_info.n_args; n_arg++){               \
+			*(int*)(code_array + ip) = cmd_info.arg.value[n_arg];           \
+			ip += ARG_SIZE;                                                 \
+		}                                                                   \
+	}                                                                       \
 	else
 
 void Compile(char const * const asm_file_name, char const * const bin_file_name){

@@ -33,7 +33,7 @@ const int N_JUMPS				= MAX_JMP_NUM - MIN_JMP_NUM + 1;
 
 // note: JUMP CODES IS 20 - 27
 
-#define DEF_CMD(name, num, args, code)	\
+#define DEF_CMD(name, num, args, code)  \
 CMD_##name = (num),
 
 enum instructions_nums{

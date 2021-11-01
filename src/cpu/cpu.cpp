@@ -18,10 +18,10 @@ static void show_graphic(cpu_t* cpu_storage);
 
 static char get_pix_symb(cpu_t* cpu_storage, int x, int y);
 
-#define DEF_CMD(name, num, args, code)					\
-case CMD_##name:										\
-	code;												\
-	cpu_storage.registers[AX] += 1 + (args) * ARG_SIZE;	\
+#define DEF_CMD(name, num, args, code)                  \
+case CMD_##name:                                        \
+	code;                                               \
+	cpu_storage.registers[AX] += 1 + (args) * ARG_SIZE; \
 	break;
 
 void Proccessing(char const * const bin_file_name){
@@ -35,7 +35,7 @@ void Proccessing(char const * const bin_file_name){
 	CpuConstructor(&cpu_storage);
 
 	if(code_array.p[0] != INVARIANT_SIGNATURE){
-		LOG_ERROR_MSG("signature is invalid");
+		LOG_ERROR_MSG(" signature is invalid");
 	}
 	if(code_array.p[1] != VERSION){
 		LOG_ERROR_MSG("version is invalid");
