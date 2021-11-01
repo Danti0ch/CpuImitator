@@ -1,5 +1,10 @@
-
 #include "disasm.h"
+
+#include <assert.h>
+#include <string.h>
+#include <stdio.h>
+#include "../cmd_constants.h"
+#include "log.h"
 
 static void AsmCodeConstructor(asm_code* code_array, char const * const bin_file_name);
 
@@ -40,7 +45,8 @@ void Disassembling(char const * const bin_file_name, char const * const log_file
     }
 
     AsmCodeDestructor(&code_array);
-
+    close_log_file();
+    
     return;
 }
 

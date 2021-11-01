@@ -2,11 +2,6 @@
 #define ASM_H
 
 #include <stdlib.h>
-#include <assert.h>
-#include <string.h>
-#include <stdio.h>
-#include "../cmd_constants.h"
-#include "log.h"
 
 const char DEFAULT_LOG_NAME[20] = "lst.txt";
 

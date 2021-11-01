@@ -1,12 +1,8 @@
 #ifndef CPU_H
 #define CPU_H
 
-#include <stdio.h>
-#include <assert.h>
-#include <windows.h>
-#include <math.h>
-#include "my_stack.h"
 #include "../cmd_constants.h"
+#include "my_stack.h"
 
 const int RAM_SIZE              = 4096;
 
@@ -31,7 +27,7 @@ const int DX = 3;
 const int EX = 4;
 const int FX = 5;
 const int GX = 6;
-const int HX = 7;
+const int PC = 7;
 
 enum class ERROR_CODES{
     OK = 0,
@@ -43,10 +39,10 @@ struct cpu_t{
 
     stack_t call_stack;
 
-    int registers[8];
+    ARG_TYPE registers[8];
 
     /// указатель на оперативную память
-    int *p_ram;
+    ARG_TYPE *p_ram;
 
     char *p_graphic_ram;
 };
@@ -56,11 +52,12 @@ struct asm_code{
     size_t len;
 };
 
-#define LOG_ERROR_MSG(msg)          \
-                                    \
-    printf("ERROR: %s\n", (msg));   \
-                                    \
-    assert(0);
+#define LOG_ERROR_MSG(msg)                                        \
+                                                                  \
+    printf("on command: [%d]\n"                                   \
+           "\tERROR: %s\n", cpu_storage->registers[PC], (msg));   \
+                                                                  \
+    exit(0);
 
 void Proccessing(char const * const bin_file_name);
 

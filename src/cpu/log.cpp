@@ -7,8 +7,11 @@ void open_log_file(const char* name){
 	assert(name != NULL);
 
 	log_file = fopen(name, "w");
-
 	assert(log_file != NULL);
+
+	setvbuf(log_file, NULL, _IONBF, 0);
+
+	return;
 }
 
 void close_log_file(){
@@ -16,6 +19,8 @@ void close_log_file(){
 	assert(log_file != NULL);
 
 	fclose(log_file);
+
+	return;
 }
 
 void to_log(const char* str, ...){
@@ -29,4 +34,6 @@ void to_log(const char* str, ...){
 
 	vfprintf(log_file, str, args);
 	va_end(args);
+
+	return;
 }

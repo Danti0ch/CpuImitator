@@ -7,6 +7,7 @@
 #include <string.h>
 #include <cstdint>
 #include "log.h"
+#include "../cmd_constants.h"
 
 #define LOCATION       __LINE__, __FILE__, __FUNCTION__
 #define DATE_OF_DEBUG  __DATE__, __TIME__
@@ -48,7 +49,7 @@ enum class POISONS{
 	DATA_CANARY_AFTER_DESTRUCTOR	= 0xBA5ED03
 };
 
-typedef int TYPE_STACK;
+typedef ARG_TYPE TYPE_STACK;
 
 #define TYPE_STACK_specif "%d"
 const char TYPE_NAME[] = "int";

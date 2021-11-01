@@ -11,6 +11,11 @@ int main(const int argc, char const * const argv[]){
 	struct stat asm_stat;
 	struct stat code_stat;
 
+	if(argc != 2){
+		printf("format should be: launch.exe [file_name].txt\n");
+		return 0;
+	}
+
 	stat(argv[1], &asm_stat);
 	stat(BIN_FILE_NAME, &code_stat);
 

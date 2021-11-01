@@ -7,12 +7,14 @@ const char VERSION 				= (char)1;
 const char BIN_FILE_NAME[8]		= "asm.bin";
 const char LOG_FILE_NAME[8] 	= "log.txt";
 
-const int MAX_ARGS_NUM 			= 1;
-const int ARG_SIZE 				= sizeof(int);
-const int MAX_INSTRUCTIONS_NUM 	= 300;
-const int MAX_INSTR_LEN 		= 20;
+typedef int ARG_TYPE;
 
-const int ARG_PRECISION 		= 1000;
+const int MAX_ARGS_NUM 			= 1;
+const int ARG_SIZE 				= sizeof(ARG_TYPE);
+const int MAX_INSTRUCTIONS_NUM 	= 300;
+const int MAX_INSTR_LEN 		= 30;
+
+const ARG_TYPE ARG_PRECISION 		= 1000;
 const double EPS = 1e-6;
 
 const char RAM_POS         		= (char)0x80;

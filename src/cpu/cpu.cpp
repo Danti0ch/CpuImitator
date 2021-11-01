@@ -1,16 +1,21 @@
 #include "cpu.h"
 
-static void AsmCodeConstructor(asm_code* code_array, char const * const bin_file_name);
+#include <stdio.h>
+#include <assert.h>
+#include <windows.h>
+#include <math.h>
 
-static void AsmCodeDestructor(asm_code* code_array);
+static void asm_code_constructor(asm_code* code_array, char const * const bin_file_name);
 
-static void CpuConstructor(cpu_t* cpu_storage);
+static void asm_code_destructor(asm_code* code_array);
 
-static void CpuDestructor(cpu_t* cpu_storage);
+static void cpu_constructor(cpu_t* cpu_storage);
 
-static int get_arg(char* p_code, cpu_t* cpu_storage);
+static void cpu_destructor(cpu_t* cpu_storage);
 
-static void set_to_mem(char* p_code, cpu_t* cpu_storage, int arg);
+static ARG_TYPE get_arg(char* p_code, cpu_t* cpu_storage);
+
+static void set_to_mem(char* p_code, cpu_t* cpu_storage, ARG_TYPE arg);
 
 static void change_pix_val(cpu_t* cpu_storage, int n_pix, int val);
 
@@ -21,66 +26,79 @@ static char get_pix_symb(cpu_t* cpu_storage, int x, int y);
 #define DEF_CMD(name, num, args, code)                  \
 case CMD_##name:                                        \
     code;                                               \
-    cpu_storage.registers[AX] += 1 + (args) * ARG_SIZE; \
+    cpu_storage.registers[PC] += 1 + (args) * ARG_SIZE; \
     break;
 
 void Proccessing(char const * const bin_file_name){
 
     assert(bin_file_name != NULL);
 
+    open_log_file(LOG_FILE_NAME);
+
     asm_code code_array = {};
-    AsmCodeConstructor(&code_array, bin_file_name);
+    asm_code_constructor(&code_array, bin_file_name);
 
     cpu_t cpu_storage = {};
-    CpuConstructor(&cpu_storage);
+    cpu_constructor(&cpu_storage);
 
     if(code_array.p[0] != INVARIANT_SIGNATURE){
-        LOG_ERROR_MSG(" signature is invalid");
+        printf("error: signature is invalid\n");
+        exit(0);
     }
     if(code_array.p[1] != VERSION){
-        LOG_ERROR_MSG("version is invalid");
+        printf("error: version is invalid\n");
+        exit(0);
     }
 
     for(;;){
-        switch((char)(code_array.p[cpu_storage.registers[AX]] & CMD_NUM_MASK)){
+        switch((char)(code_array.p[cpu_storage.registers[PC]] & CMD_NUM_MASK)){
             #include "../cmd_definitions.h"
             default:
-                printf("ip = %d\n", cpu_storage.registers[AX]);
-                LOG_ERROR_MSG("wrong cmd num");
+                printf("pc = %d, wrong cmd num\n", cpu_storage.registers[PC]);
+                exit(0);
                 break;
         }
     }
 
-    AsmCodeDestructor(&code_array);
-    CpuDestructor(&cpu_storage);
-
+    asm_code_destructor(&code_array);
+    cpu_destructor(&cpu_storage);
+    close_log_file();
     return;
 }
 
-static void AsmCodeConstructor(asm_code* code_array, char const * const bin_file_name){
+static void asm_code_constructor(asm_code* code_array, char const * const bin_file_name){
     
     assert(bin_file_name != NULL);
 
     FILE *code_file = fopen(bin_file_name, "rb");
 
-    assert(code_file != NULL);
-    
+    if(code_file == NULL){
+        printf("error: opening %s file\n", bin_file_name);
+        exit(0);
+    }
+
     fseek(code_file, 0, SEEK_END);
     size_t file_size = ftell(code_file);
     fseek(code_file, 0, SEEK_SET);
 
     code_array->p = (char*)calloc(file_size, sizeof(char));
-    assert(code_array->p != NULL);
+    if(code_array->p == NULL){
+        printf("error: bin array allocation\n");
+        exit(0);
+    }
 
     code_array->len = file_size;
 
-    assert(fread(code_array->p, sizeof(char), file_size, code_file) == file_size);
+    if(fread(code_array->p, sizeof(char), file_size, code_file) != file_size){
+        printf("error: bin array recording\n");
+        exit(0);
+    }
     fclose(code_file);
 
     return;
 }
 
-static void AsmCodeDestructor(asm_code* code_array){
+static void asm_code_destructor(asm_code* code_array){
 
     assert(code_array != NULL);
 
@@ -91,49 +109,59 @@ static void AsmCodeDestructor(asm_code* code_array){
     return;
 }
 
-static void CpuConstructor(cpu_t* cpu_storage){
+static void cpu_constructor(cpu_t* cpu_storage){
 
     assert(cpu_storage != NULL);
 
-    assert(StackConstructor(&(cpu_storage->stk), STACK_INIT_SIZE)        == ERROR_CODE::OK);
-    assert(StackConstructor(&(cpu_storage->call_stack), STACK_INIT_SIZE) == ERROR_CODE::OK);
+    if(StackConstructor(&(cpu_storage->stk), STACK_INIT_SIZE) != ERROR_CODE::OK){
+        LOG_ERROR_MSG("stack construction");
+    }
+    if(StackConstructor(&(cpu_storage->call_stack), STACK_INIT_SIZE) != ERROR_CODE::OK){
+        LOG_ERROR_MSG("stack construction");
+    }
 
-    cpu_storage->p_ram = (int*)calloc(RAM_SIZE, sizeof(int));
-    assert(cpu_storage->p_ram != NULL);
+    cpu_storage->p_ram = (ARG_TYPE*)calloc(RAM_SIZE, sizeof(ARG_TYPE));
+    if(cpu_storage->p_ram == NULL){
+        LOG_ERROR_MSG("ram allocation")
+    }
 
     cpu_storage->p_graphic_ram = (char*)cpu_storage->p_ram + GPU_RAM_POS;
 
     memset(cpu_storage->p_graphic_ram, 0x00, GPU_RAM_SIZE);
     
-    cpu_storage->registers[AX] = N_SIGNATURES;
+    cpu_storage->registers[PC] = N_SIGNATURES;
 
     return;
 }
 
-static void CpuDestructor(cpu_t* cpu_storage){
+static void cpu_destructor(cpu_t* cpu_storage){
 
     assert(cpu_storage != NULL);
 
-    assert(StackDestructor(&(cpu_storage->stk))        == ERROR_CODE::OK);
-    assert(StackDestructor(&(cpu_storage->call_stack)) == ERROR_CODE::OK);
+    if(StackDestructor(&(cpu_storage->stk)) != ERROR_CODE::OK){
+        LOG_ERROR_MSG("stack destruction");
+    }
+    if(StackDestructor(&(cpu_storage->call_stack)) != ERROR_CODE::OK){
+        LOG_ERROR_MSG("stack destruction");
+    }
 
     free(cpu_storage->p_ram);
 
-    cpu_storage->p_ram      = (int*)POISON_POINTER;
+    cpu_storage->p_ram      = (ARG_TYPE*)POISON_POINTER;
     cpu_storage->p_graphic_ram = (char*)POISON_POINTER;
 
     return;
 }
 
-static int get_arg(char* p_code, cpu_t* cpu_storage){
+static ARG_TYPE get_arg(char* p_code, cpu_t* cpu_storage){
     
     assert(p_code != NULL);
     assert(cpu_storage != NULL);
 
-    int arg = 0;
+    ARG_TYPE arg = 0;
 
     if(*p_code & IMMED_CONST_POS){
-        arg = *(int*)(p_code + 1);
+        arg = *(ARG_TYPE*)(p_code + 1);
     }
     else if(*p_code & REG_POS){
         arg = cpu_storage->registers[(int)*(p_code + 1)];
@@ -155,7 +183,7 @@ static int get_arg(char* p_code, cpu_t* cpu_storage){
     return arg;
 }
 
-static void set_to_mem(char* p_code, cpu_t* cpu_storage, int arg){
+static void set_to_mem(char* p_code, cpu_t* cpu_storage, ARG_TYPE arg){
     
     assert(p_code != NULL);
 
@@ -218,7 +246,7 @@ static void show_graphic(cpu_t* cpu_storage){
         for(int x = 0; x < WINDOW_SIDE; x++){
 
             char pix = get_pix_symb(cpu_storage, x, y);
-            printf("%c", pix);
+            printf("%c%c", pix, pix);
         }
         printf("\n");
     }
@@ -235,10 +263,7 @@ static char get_pix_symb(cpu_t* cpu_storage, int x, int y){
 
     char pix_val = *(cpu_storage->p_graphic_ram + byte_offset);
 
-    if(pix_val & (1 << bit_offset)){
-        return pix_1;
-    }
-    else{
-        return pix_0;
-    }
+    pix_val &= (char)(1 << bit_offset);
+
+    return pix_val ? pix_1 : pix_0;
 }

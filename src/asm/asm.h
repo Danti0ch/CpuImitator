@@ -1,24 +1,25 @@
 #ifndef ASM_H
 #define ASM_H
 
-#include <stdlib.h>
-#include <assert.h>
-#include <string.h>
-#include <stdio.h>
-#include "text_storage.h"
 #include "../cmd_constants.h"
 
 // максимальная длина метки
-const int MAX_LABEL_SIZE  = 20;
+const int MAX_LABEL_SIZE  = 25;
+/// максимальное количество меток
+const int MAX_LABELS_NUM  = 50;
 
+/// яд для pc
 const int INVALID_CMD_NUM = -1;
 
+/// имена джампов
 const char jump_names[N_JUMPS][MAX_INSTR_LEN] = {
     "jmp", "ja", "jb", "je", "jae", "jbe", "jne", "call"
 };
 
+/// количество проходов при ассемблировании
 const int N_STAGES = 2;
 
+/// коды ошибок
 enum class ERROR_CODES{
     OK = 0,
     WRONG_REGISTER_NAME,
@@ -28,22 +29,21 @@ enum class ERROR_CODES{
     WRONG_LABEL_NAME
 };
 
-// структура для хранения аргументов и типа команды
-
+// структура для хранения аргументов и их типа
 struct cmd_arg{
-    int value[MAX_ARGS_NUM];
-    char type;
+    ARG_TYPE value[MAX_ARGS_NUM]; /// массив значений аргументов
+    char type;                    /// тип аргументов заданный в виде битовой строки
 };
 
-// структура для хранения информации о комманде
-struct _cmd_info{
-    char        name[MAX_INSTR_LEN];
-    cmd_arg     arg;
-
-    int         n_args;
+/// структура для хранения информации о комманде
+struct cmd_info_t{
+    char        name[MAX_INSTR_LEN]; /// имя команды
+    cmd_arg     arg;                 /// информация об аргументах комманды
+    int         n_args;              /// количество аргументов
 };
 
-#define REGISTER_FORMAT_CHEC                        \
+/// проверка на то, что имя регистра корректно
+#define REGISTER_FORMAT_CHECK                       \
                                                     \
     if(cmd_info->arg.value[0]  >= N_REGISTERS){     \
         return ERROR_CODES::WRONG_REGISTER_NAME;    \
@@ -56,6 +56,13 @@ struct _cmd_info{
            asm_file_name, (msg), n_line + 1, asm_text.p_lines[n_line].pointer); \
     destruct_code_array(code_array);
 
-void Compile(char const * const in_asm_name, char const * const out_asm_name);
+/**
+ * компилирует текстовый файл asm_file_name в бинарник bin_file_name
+ * 
+ * \param asm_file_name имя исходного текстового файла
+ * \param bin_file_name имя выходного бинарного файла
+ * 
+ */
+void Compile(char const * const asm_file_name, char const * const bin_file_name);
 
 #endif // ASM_H

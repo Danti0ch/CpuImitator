@@ -1,26 +1,45 @@
 #include "asm.h"
 
+#include <stdlib.h>
+#include <assert.h>
+#include <string.h>
+#include <stdio.h>
+#include "text_storage.h"
+
+/**
+ * создаёт байтовый массив для записи кода и инициализрует его сигнатурами
+ * 
+ * /return указатель на массив для записи кода
+ */
 static char* init_code_array();
 
-static void destruct_code_array(char* code_array);
+/**
+ * создаёт байтовый массив для записи кода и инициализрует его сигнатурами
+ * 
+ * /return указатель на массив для записи кода
+ */
+static inline void destruct_code_array(char* code_array);
 
-static ERROR_CODES parse_label(char const * cmd_str, char labels[][MAX_LABEL_SIZE], int* ip);
+/**
+ * создаёт байтовый массив для записи кода и инициализрует его сигнатурами
+ * 
+ * /return указатель на массив для записи кода
+ */
+ static ERROR_CODES parse_label(char const * cmd_str, char labels[][MAX_LABEL_SIZE], int* ip);
 
-static ERROR_CODES parse_cmd(_cmd_info *cmd_info, char const * str, char labels[][MAX_LABEL_SIZE], int* ip);
+static ERROR_CODES parse_cmd(cmd_info_t* cmd_info, char const * str, char labels[][MAX_LABEL_SIZE], int* ip);
 
-static int get_label_ip(char const *cmd_str, char labels[][MAX_LABEL_SIZE]);
+static int get_label_ip(char const * cmd_str, char labels[][MAX_LABEL_SIZE]);
 
 static int is_jump(char const * str);
 
-#define PREPROCCESOR_TO_STRING(name) #name
-
 #define DEF_CMD(_name, num, args, code)                                     \
-    if(strcmp(PREPROCCESOR_TO_STRING(_name), cmd_info.name) == 0){          \
+    if(strcmp((#_name), cmd_info.name) == 0){                               \
                                                                             \
         code_array[ip++] = (num) | cmd_info.arg.type;                       \
                                                                             \
         for(int n_arg = 0; n_arg < cmd_info.n_args; n_arg++){               \
-            *(int*)(code_array + ip) = cmd_info.arg.value[n_arg];           \
+            *(ARG_TYPE*)(code_array + ip) = cmd_info.arg.value[n_arg];      \
             ip += ARG_SIZE;                                                 \
         }                                                                   \
     }                                                                       \
@@ -35,9 +54,9 @@ void Compile(char const * const asm_file_name, char const * const bin_file_name)
     text_storage asm_text = {};
 
     if(get_text_storage(asm_file_name, &asm_text) != func_codes::OK){
-        printf("error: file can't be readen\n");
+        printf("error: file %s can't be readen\n", asm_file_name);
         return;
-    };
+    }
 
     char *code_array = init_code_array();
 
@@ -51,8 +70,7 @@ void Compile(char const * const asm_file_name, char const * const bin_file_name)
         int n_cmd = 0;
 
         for(unsigned int n_line = 0; n_line < asm_text.num_lines; n_line++){
-
-            _cmd_info cmd_info = {};
+            cmd_info_t cmd_info = {};
 
             ERROR_CODES parse_res = parse_cmd(&cmd_info, asm_text.p_lines[n_line].pointer, labels, &ip);
 
@@ -115,10 +133,7 @@ static char* init_code_array(){
     return code_array;
 }
 
-static void destruct_code_array(char* code_array){
-
-    assert(code_array != NULL);
-
+static inline void destruct_code_array(char* code_array){
     free(code_array);
 }
 
@@ -136,12 +151,9 @@ static ERROR_CODES parse_label(char const * cmd_str, char labels[][MAX_LABEL_SIZ
     if(sscanf(cmd_str, "%s", label_name) == 1){
         
         int label_len = strlen(label_name);
-
         if(label_name[label_len - 1] == ':'){
-
             label_name[label_len - 1] = '\0';
             strcpy(labels[*ip], label_name);
-
             return ERROR_CODES::LABEL;
         }
         else{
@@ -151,7 +163,7 @@ static ERROR_CODES parse_label(char const * cmd_str, char labels[][MAX_LABEL_SIZ
     return ERROR_CODES::EMPTY_LINE;
 }
 
-static ERROR_CODES parse_cmd(_cmd_info *cmd_info, char const * cmd_str, char labels[][MAX_LABEL_SIZE], int* ip){
+static ERROR_CODES parse_cmd(cmd_info_t* cmd_info, char const * cmd_str, char labels[][MAX_LABEL_SIZE], int* ip){
 
     assert(cmd_info != NULL);
     assert(cmd_str != NULL);
@@ -166,7 +178,7 @@ static ERROR_CODES parse_cmd(_cmd_info *cmd_info, char const * cmd_str, char lab
         *p_comment = '\0';
     }
 
-    int immed_const_val  = 0;
+    ARG_TYPE immed_const_val  = 0;
     char reg_name        = 0;
 
     // позиция последнего считаного символа
@@ -200,7 +212,7 @@ static ERROR_CODES parse_cmd(_cmd_info *cmd_info, char const * cmd_str, char lab
     }
 
     else if(sscanf(cmd_str, " %1[a-z]x%n", &reg_name, &str_pos) == 1){
-        cmd_info->arg.value[cmd_info->n_args++] = reg_name - 'a';
+        cmd_info->arg.value[cmd_info->n_args++] = (ARG_TYPE)(reg_name - 'a');
         
         REGISTER_FORMAT_CHECK
 
@@ -215,7 +227,7 @@ static ERROR_CODES parse_cmd(_cmd_info *cmd_info, char const * cmd_str, char lab
     }
 
     else if(sscanf(cmd_str, " [%1[a-z]x]%n", &reg_name, &str_pos) == 1){
-        cmd_info->arg.value[cmd_info->n_args++] = reg_name - 'a';
+        cmd_info->arg.value[cmd_info->n_args++] = (ARG_TYPE)(reg_name - 'a');
         
         REGISTER_FORMAT_CHECK
         
@@ -230,7 +242,7 @@ static ERROR_CODES parse_cmd(_cmd_info *cmd_info, char const * cmd_str, char lab
     return ERROR_CODES::OK;
 }
 
-static int get_label_ip(char const *cmd_str, char labels[][MAX_LABEL_SIZE]){
+static int get_label_ip(char const* cmd_str, char labels[][MAX_LABEL_SIZE]){
 
     assert(cmd_str != NULL);
     assert(labels  != NULL);

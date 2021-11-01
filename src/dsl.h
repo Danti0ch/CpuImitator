@@ -2,12 +2,12 @@
 #define DSL_H
 
 #define _GET_ARG(num)                                                                 \
-    get_arg(code_array.p + cpu_storage.registers[AX] + num * ARG_SIZE, &cpu_storage)
+    get_arg(code_array.p + cpu_storage.registers[PC] + num * ARG_SIZE, &cpu_storage)
 
 #define _HLT                                            \
 {                                                       \
-    AsmCodeDestructor(&code_array);                     \
-    CpuDestructor(&cpu_storage);                        \
+    asm_code_destructor(&code_array);                     \
+    cpu_destructor(&cpu_storage);                        \
     return;                                             \
 }
 
@@ -24,7 +24,7 @@
 
 #define _JMP(arg)                                       \
 {                                                       \
-    cpu_storage.registers[AX] = (arg) - 1 - ARG_SIZE;   \
+    cpu_storage.registers[PC] = (arg) - 1 - ARG_SIZE;   \
 }
 
 #endif
