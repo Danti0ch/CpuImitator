@@ -6,8 +6,8 @@
 
 #define _HLT                                            \
 {                                                       \
-    asm_code_destructor(&code_array);                     \
-    cpu_destructor(&cpu_storage);                        \
+    asm_code_destructor(&code_array);                   \
+    cpu_destructor(&cpu_storage);                       \
     return;                                             \
 }
 

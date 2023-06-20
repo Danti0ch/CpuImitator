@@ -7,13 +7,13 @@ DEF_CMD(hlt, 0, 0,
 })
 
 DEF_CMD(out, 1, 0, 
-{	
+{
 	ARG_TYPE x = _TOP;
 	printf("%d.%d\n", x / ARG_PRECISION, abs(x) % ARG_PRECISION);
 })
 
 DEF_CMD(in, 2, 0,
-{	
+{
 	double dx = 0;
 	scanf("%lf", &dx);
 

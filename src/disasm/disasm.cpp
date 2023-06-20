@@ -6,17 +6,15 @@
 #include "../cmd_constants.h"
 #include "log.h"
 
-static void AsmCodeConstructor(asm_code* code_array, char const * const bin_file_name);
+static void asm_code_constructor(asm_code* code_array, char const * const bin_file_name);
 
-static void AsmCodeDestructor(asm_code* code_array);
+static void asm_code_destructor(asm_code* code_array);
 
 void print_cmd(char* p_cmd, const char* cmd_name, int pos, int n_arg);
 
-#define PREPROCCESOR_TO_STRING(name) #name
-
 #define DEF_CMD(name, num, args, code)                                          \
 case CMD_##name:                                                                \
-    print_cmd(code_array.p + ip, PREPROCCESOR_TO_STRING(name), ip, (args));     \
+    print_cmd(code_array.p + ip, (#name), ip, (args));                          \
     ip += 1 + (args) * ARG_SIZE;                                                \
     break;
 
@@ -26,7 +24,21 @@ void Disassembling(char const * const bin_file_name, char const * const log_file
     assert(log_file_name != NULL);
 
     asm_code code_array = {};
-    AsmCodeConstructor(&code_array, bin_file_name);
+    asm_code_constructor(&code_array, bin_file_name);
+
+    if(code_array.p[0] != INVARIANT_SIGNATURE){
+
+        printf("error: signature is invalid\n");
+        asm_code_destructor(&code_array);
+        exit(0);
+    }
+
+    if(code_array.p[1] != VERSION){
+
+        printf("error: version is invalid\n");
+        asm_code_destructor(&code_array);
+        exit(0);
+    }
 
     open_log_file(log_file_name);
 
@@ -44,7 +56,7 @@ void Disassembling(char const * const bin_file_name, char const * const log_file
         }
     }
 
-    AsmCodeDestructor(&code_array);
+    asm_code_destructor(&code_array);
     close_log_file();
     
     return;
@@ -52,7 +64,7 @@ void Disassembling(char const * const bin_file_name, char const * const log_file
 
 #undef DEF_CMD
 
-static void AsmCodeConstructor(asm_code* code_array, char const * const bin_file_name){
+static void asm_code_constructor(asm_code* code_array, char const * const bin_file_name){
     
     assert(bin_file_name != NULL);
 
@@ -75,7 +87,7 @@ static void AsmCodeConstructor(asm_code* code_array, char const * const bin_file
     return;
 }
 
-static void AsmCodeDestructor(asm_code* code_array){
+static void asm_code_destructor(asm_code* code_array){
 
     assert(code_array != NULL);
 
@@ -86,7 +98,6 @@ static void AsmCodeDestructor(asm_code* code_array){
     return;
 }
 
-// TODO: прога для функций работы с файлами
 void print_cmd(char* p_cmd, const char* cmd_name, int pos, int n_arg){
     
     assert(p_cmd != NULL);

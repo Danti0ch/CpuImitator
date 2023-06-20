@@ -6,32 +6,33 @@
 #include <stdio.h>
 #include "text_storage.h"
 
-/**
- * создаёт байтовый массив для записи кода и инициализрует его сигнатурами
- * 
- * /return указатель на массив для записи кода
- */
+
 static char* init_code_array();
 
-/**
- * создаёт байтовый массив для записи кода и инициализрует его сигнатурами
- * 
- * /return указатель на массив для записи кода
- */
 static inline void destruct_code_array(char* code_array);
 
-/**
- * создаёт байтовый массив для записи кода и инициализрует его сигнатурами
- * 
- * /return указатель на массив для записи кода
- */
- static ERROR_CODES parse_label(char const * cmd_str, char labels[][MAX_LABEL_SIZE], int* ip);
+static ERROR_CODES parse_label(char const * cmd_str, char labels[][MAX_LABEL_SIZE], int* ip);
 
 static ERROR_CODES parse_cmd(cmd_info_t* cmd_info, char const * str, char labels[][MAX_LABEL_SIZE], int* ip);
 
 static int get_label_ip(char const * cmd_str, char labels[][MAX_LABEL_SIZE]);
 
 static int is_jump(char const * str);
+
+/// проверка на то, что имя регистра корректно
+#define REGISTER_FORMAT_CHECK                       \
+                                                    \
+    if(cmd_info->arg.value[0]  >= N_REGISTERS){     \
+        return ERROR_CODES::WRONG_REGISTER_NAME;    \
+    }
+
+#define LOG_ERROR_MSG(msg)                                                      \
+                                                                                \
+    printf("ERROR from file (%s): %s\n"                                         \
+           "\t[%u]: %s\n",                                                      \
+           asm_file_name, (msg), n_line + 1, asm_text.p_lines[n_line].pointer); \
+    destruct_code_array(code_array);
+
 
 #define DEF_CMD(_name, num, args, code)                                     \
     if(strcmp((#_name), cmd_info.name) == 0){                               \
@@ -93,7 +94,9 @@ void Compile(char const * const asm_file_name, char const * const bin_file_name)
                 LOG_ERROR_MSG("invalid label name");
                 return;
             }
+
             #include "../cmd_definitions.h"
+
             /* else */{
                 LOG_ERROR_MSG("invalid command name");
                 return;
@@ -151,7 +154,9 @@ static ERROR_CODES parse_label(char const * cmd_str, char labels[][MAX_LABEL_SIZ
     if(sscanf(cmd_str, "%s", label_name) == 1){
         
         int label_len = strlen(label_name);
+
         if(label_name[label_len - 1] == ':'){
+
             label_name[label_len - 1] = '\0';
             strcpy(labels[*ip], label_name);
             return ERROR_CODES::LABEL;

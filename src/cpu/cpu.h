@@ -4,7 +4,7 @@
 #include "../cmd_constants.h"
 #include "my_stack.h"
 
-const int RAM_SIZE              = 4096;
+const int RAM_SIZE              = 4096 * 64;
 
 const int N_BITS_IN_BYTE        = 8;
 const int WINDOW_SIDE           = 32;
@@ -48,13 +48,14 @@ struct cpu_t{
 };
 
 struct asm_code{
+    // TODO: p -> buf
     char *p;
     size_t len;
 };
 
 #define LOG_ERROR_MSG(msg)                                        \
                                                                   \
-    printf("on command: [%d]\n"                                   \
+    printf("on command: [%d]\n"                                \
            "\tERROR: %s\n", cpu_storage->registers[PC], (msg));   \
                                                                   \
     exit(0);

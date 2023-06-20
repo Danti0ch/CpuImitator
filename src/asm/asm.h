@@ -42,20 +42,6 @@ struct cmd_info_t{
     int         n_args;              /// количество аргументов
 };
 
-/// проверка на то, что имя регистра корректно
-#define REGISTER_FORMAT_CHECK                       \
-                                                    \
-    if(cmd_info->arg.value[0]  >= N_REGISTERS){     \
-        return ERROR_CODES::WRONG_REGISTER_NAME;    \
-    }
-
-#define LOG_ERROR_MSG(msg)                                                      \
-                                                                                \
-    printf("ERROR from file (%s): %s\n"                                         \
-           "\t[%u]: %s\n",                                                      \
-           asm_file_name, (msg), n_line + 1, asm_text.p_lines[n_line].pointer); \
-    destruct_code_array(code_array);
-
 /**
  * компилирует текстовый файл asm_file_name в бинарник bin_file_name
  * 

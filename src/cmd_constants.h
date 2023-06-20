@@ -9,7 +9,7 @@ const char LOG_FILE_NAME[8] 	= "log.txt";
 
 typedef int ARG_TYPE;
 
-const int MAX_ARGS_NUM 			= 1;
+const int MAX_ARGS_NUM 			= 2;
 const int ARG_SIZE 				= sizeof(ARG_TYPE);
 const int MAX_INSTRUCTIONS_NUM 	= 300;
 const int MAX_INSTR_LEN 		= 30;

@@ -29,6 +29,7 @@ case CMD_##name:                                        \
     cpu_storage.registers[PC] += 1 + (args) * ARG_SIZE; \
     break;
 
+// void -> int
 void Proccessing(char const * const bin_file_name){
 
     assert(bin_file_name != NULL);
@@ -42,20 +43,27 @@ void Proccessing(char const * const bin_file_name){
     cpu_constructor(&cpu_storage);
 
     if(code_array.p[0] != INVARIANT_SIGNATURE){
+
         printf("error: signature is invalid\n");
+        asm_code_destructor(&code_array);
         exit(0);
     }
+    
     if(code_array.p[1] != VERSION){
+
         printf("error: version is invalid\n");
+        asm_code_destructor(&code_array);
         exit(0);
     }
 
     for(;;){
         switch((char)(code_array.p[cpu_storage.registers[PC]] & CMD_NUM_MASK)){
+
             #include "../cmd_definitions.h"
+
             default:
                 printf("pc = %d, wrong cmd num\n", cpu_storage.registers[PC]);
-                exit(0);
+                return;
                 break;
         }
     }
@@ -63,9 +71,11 @@ void Proccessing(char const * const bin_file_name){
     asm_code_destructor(&code_array);
     cpu_destructor(&cpu_storage);
     close_log_file();
+
     return;
 }
 
+// TODO: void -> error_code
 static void asm_code_constructor(asm_code* code_array, char const * const bin_file_name){
     
     assert(bin_file_name != NULL);
