@@ -1,0 +1,34 @@
+in
+pop bx
+push bx
+pop cx
+
+call fact
+
+push cx
+out
+hlt
+
+fact:
+
+	push bx
+	push 1
+
+	je next
+
+	push 1
+	push bx
+	sub
+	pop bx
+
+	push bx
+	push cx
+	mul
+
+	pop cx
+	push cx
+
+	call fact
+
+	next:
+	ret

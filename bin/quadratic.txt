@@ -1,0 +1,130 @@
+in
+pop bx
+in
+pop cx
+in
+pop dx
+call solve_sqr_eq
+hlt
+
+solve_sqr_eq:
+	push 0
+	push bx
+	je solve_lin
+
+	push 4
+	push dx
+	push bx
+	push -1
+	mul
+	mul
+	mul
+
+	push cx
+	push cx
+	mul
+	add
+
+	pop ex
+	push ex
+	push 0
+
+	jae pos_descr
+		call no_roots
+		ret
+
+	pos_descr:
+		push bx
+		push 2
+		mul
+
+		push cx
+		push -1
+		mul
+
+		push ex
+		root
+
+		add
+		div
+
+		pop [15]
+
+		push bx
+		push 2
+
+		mul
+		push cx
+		push -1
+		mul
+
+		push ex
+		root
+		push -1
+		mul
+
+		add
+		div
+
+		pop [16]
+
+		push [15]
+		push [16]
+		push [15]
+		push [16]
+
+		je one_root
+			out
+			pop [17]
+			out
+			ret
+
+		one_root:
+			out
+		ret
+	solve_lin:
+		call solve_lin_eq
+		ret
+
+solve_lin_eq:
+	push cx
+	push 0
+
+	je expr1
+		push cx
+		push dx
+		push -1
+		mul
+		div
+
+		out
+
+		ret
+	expr1:
+		call solve_degenerate_eq
+		ret
+
+
+solve_degenerate_eq:
+	push dx
+	push 0
+
+	je expr2
+		call inf_roots
+		ret
+
+	expr2:
+		call no_roots
+		ret
+
+inf_roots:
+	push -556
+	out
+	ret
+
+no_roots:
+	push -555
+	out
+	ret
+
+hlt
