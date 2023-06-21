@@ -1,4 +1,4 @@
-# simple_cpu
+# CpuImitator
 
 ## Description
 During the laboratory work, it was necessary to implement its own assembly language, which is compiled into a binary file, and then executed on a virtual processor. To demonstrate that memory accesses are quite expensive in memory, operations with them were specially slowed down using the sleep system call
