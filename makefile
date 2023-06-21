@@ -1,4 +1,4 @@
-SRC := $(realpath src)
+SRC := $(realpath src/$(target))
 
 BUILD := build
 BIN := bin
@@ -18,7 +18,7 @@ CFLAGS = $(INCDIRS) -std=c++17 #-Wall -Wextra -Weffc++ -Wc++0x-compat -Wc++11-co
 LFLAGS := -export-dynamic -no-pie 
 
 main: $(OBJ_FILES) #$(PLUGINS_FILES)
-	$(CXX) -o $(BIN)/$@ $^ $(LFLAGS)
+	$(CXX) -o $(BIN)/$(target).exe $^ $(LFLAGS)
 
 $(BUILD)/%.o: %.cpp
 	@mkdir -p $(dir $@)

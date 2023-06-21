@@ -178,7 +178,7 @@ static ERROR_CODES parse_cmd(cmd_info_t* cmd_info, char const * cmd_str, char la
     }
 
     // избавляемся от комментариев
-    char *p_comment = strchr(cmd_str, ';');
+    char *p_comment = (char*)strchr(cmd_str, ';');
     if(p_comment != NULL){
         *p_comment = '\0';
     }

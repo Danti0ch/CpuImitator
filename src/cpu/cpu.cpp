@@ -2,8 +2,8 @@
 
 #include <stdio.h>
 #include <assert.h>
-#include <windows.h>
 #include <math.h>
+#include <unistd.h>
 
 static void asm_code_constructor(asm_code* code_array, char const * const bin_file_name);
 
@@ -181,7 +181,7 @@ static ARG_TYPE get_arg(char* p_code, cpu_t* cpu_storage){
     }
 
     if(*p_code & RAM_POS){
-        Sleep(RAM_CALLBACK_TIME);
+        sleep(RAM_CALLBACK_TIME);
 
         if( arg < 0 || arg > RAM_SIZE){
             LOG_ERROR_MSG("invalid ram position");
@@ -210,7 +210,7 @@ static void set_to_mem(char* p_code, cpu_t* cpu_storage, ARG_TYPE arg){
     }
 
     if(*p_code & RAM_POS){
-        Sleep(RAM_CALLBACK_TIME);
+        sleep(RAM_CALLBACK_TIME);
 
         if( ram_pos < 0 || ram_pos > RAM_SIZE){
             LOG_ERROR_MSG("invalid ram position");

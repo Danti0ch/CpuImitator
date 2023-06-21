@@ -12,7 +12,7 @@ int main(const int argc, char const * const argv[]){
 	struct stat code_stat;
 
 	if(argc != 2){
-		printf("format should be: launch.exe [file_name].txt\n");
+		printf("format should be: ./pseudo_make.exe [file_name].txt\n");
 		return 0;
 	}
 
@@ -23,12 +23,12 @@ int main(const int argc, char const * const argv[]){
 		
 		printf("file %s has changed, recompile\n", argv[1]);
 
-		char system_call_string[50] = "asm.exe ";
+		char system_call_string[50] = "./asm.exe ";
 		
 		strcat(system_call_string, argv[1]);
 		system(system_call_string);
 	}
 
-	system("cpu.exe");
+	system("./cpu.exe");
 	return 0;
 }
